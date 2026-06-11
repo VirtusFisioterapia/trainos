@@ -12,7 +12,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: npm install @supabase/supabase-js resend
+      - run: npm install @supabase/supabase-js resend ws
       - run: node .github/scripts/resoconto.js
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
