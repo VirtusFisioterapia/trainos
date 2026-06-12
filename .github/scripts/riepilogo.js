@@ -41,18 +41,30 @@ async function main() {
   const profileMap = {};
   (profiles || []).forEach(p => { profileMap[p.email] = p; });
 
-  const struttura = {};
+  // Raggruppa atleti per squadra
+  const squadreAtleti = {};
+  (profiles || []).forEach(p => {
+    const squadra = p.gruppo || 'Senza squadra';
+    if (!squadreAtleti[squadra]) squadreAtleti[squadra] = [];
+    squadreAtleti[squadra].push(p.email);
+  });
+
+  // Struttura: squadra → atleta → blocco → esercizio → { pianTot, esegTot, isIso }
+  const strutturaGlobale = {};
   sessioni.forEach(s => {
     const email = s.atleta_email;
+    const p = profileMap[email];
+    const squadra = p?.gruppo || 'Senza squadra';
     const blocco = s.blocco || 'Senza blocco';
     const eserc = s.esercizio;
     const isIso = (blocco || '').toLowerCase().includes('isometria');
 
-    if (!struttura[email]) struttura[email] = {};
-    if (!struttura[email][blocco]) struttura[email][blocco] = {};
-    if (!struttura[email][blocco][eserc]) struttura[email][blocco][eserc] = { pianTot: 0, esegTot: 0, isIso };
+    if (!strutturaGlobale[squadra]) strutturaGlobale[squadra] = {};
+    if (!strutturaGlobale[squadra][email]) strutturaGlobale[squadra][email] = {};
+    if (!strutturaGlobale[squadra][email][blocco]) strutturaGlobale[squadra][email][blocco] = {};
+    if (!strutturaGlobale[squadra][email][blocco][eserc]) strutturaGlobale[squadra][email][blocco][eserc] = { pianTot: 0, esegTot: 0, isIso };
 
-    const r = struttura[email][blocco][eserc];
+    const r = strutturaGlobale[squadra][email][blocco][eserc];
     const ris = (risultati || []).find(r2 => r2.sessione_id === s.id);
 
     if (isIso) {
@@ -64,54 +76,76 @@ async function main() {
     }
   });
 
-  const blocchiEsercizi = {};
-  Object.values(struttura).forEach(blocchi => {
-    Object.entries(blocchi).forEach(([blocco, esercizi]) => {
-      if (!blocchiEsercizi[blocco]) blocchiEsercizi[blocco] = new Set();
-      Object.keys(esercizi).forEach(e => blocchiEsercizi[blocco].add(e));
-    });
-  });
-  const blocchiOrdinati = Object.keys(blocchiEsercizi).sort();
-
   const percColor = (p) => p === null ? '#999' : p >= 95 ? '#16a34a' : p >= 75 ? '#f97316' : '#dc2626';
 
-  let headerBlocchi = '<th style="background:#f4f5f7;padding:10px 14px;text-align:left;font-size:12px;border:1px solid #000;min-width:160px">Atleta</th>';
-  blocchiOrdinati.forEach(blocco => {
-    const n = [...blocchiEsercizi[blocco]].length;
-    headerBlocchi += `<th colspan="${n}" style="background:#142ecb;color:#fff;padding:10px 14px;text-align:center;font-size:13px;font-weight:700;border:1px solid #000">${blocco}</th>`;
-  });
+  // Genera una sezione HTML per ogni squadra
+  let sezioniHtml = '';
+  const squadreOrdinate = Object.keys(strutturaGlobale).sort();
 
-  let headerEsercizi = '<th style="border:1px solid #000;background:#f4f5f7"></th>';
-  blocchiOrdinati.forEach(blocco => {
-    const isIso = blocco.toLowerCase().includes('isometria');
-    [...blocchiEsercizi[blocco]].forEach(e => {
-      headerEsercizi += `<th style="background:#f4f5f7;padding:8px 12px;text-align:center;font-size:12px;border:1px solid #000;white-space:nowrap">${e}<br><span style="color:#666;font-size:10px">${isIso ? 'TUT %' : 'Tonn. %'}</span></th>`;
+  squadreOrdinate.forEach(squadra => {
+    const struttura = strutturaGlobale[squadra];
+
+    // Raccogli blocchi e esercizi per questa squadra
+    const blocchiEsercizi = {};
+    Object.values(struttura).forEach(blocchi => {
+      Object.entries(blocchi).forEach(([blocco, esercizi]) => {
+        if (!blocchiEsercizi[blocco]) blocchiEsercizi[blocco] = new Set();
+        Object.keys(esercizi).forEach(e => blocchiEsercizi[blocco].add(e));
+      });
     });
-  });
+    const blocchiOrdinati = Object.keys(blocchiEsercizi).sort();
 
-  const atleti = Object.keys(struttura).sort((a, b) => (profileMap[a]?.nome || a).localeCompare(profileMap[b]?.nome || b));
-  let righeAtleti = '';
-  atleti.forEach((email, idx) => {
-    const p = profileMap[email];
-    const nome = p?.nome || email;
-    const squadra = p?.gruppo || '';
-    const rowBg = idx % 2 === 0 ? '#ffffff' : '#f9f9f9';
-
-    let celle = `<td style="background:${rowBg};padding:10px 14px;font-weight:700;font-size:14px;border:1px solid #000;white-space:nowrap">${nome}<br><span style="font-size:11px;color:#666;font-weight:400">${squadra}</span></td>`;
-
+    // Header riga 1: blocchi
+    let headerBlocchi = '<th style="background:#f4f5f7;padding:10px 14px;text-align:left;font-size:12px;border:1px solid #000;min-width:160px">Atleta</th>';
     blocchiOrdinati.forEach(blocco => {
-      [...blocchiEsercizi[blocco]].forEach(eserc => {
-        const dati = struttura[email]?.[blocco]?.[eserc];
-        if (!dati) {
-          celle += `<td style="background:${rowBg};padding:10px 14px;text-align:center;border:1px solid #000;color:#999;font-size:13px">—</td>`;
-        } else {
-          const perc = dati.pianTot > 0 ? Math.round(dati.esegTot / dati.pianTot * 100) : null;
-          celle += `<td style="background:${rowBg};padding:10px 14px;text-align:center;border:1px solid #000;font-size:14px;font-weight:700;color:${percColor(perc)}">${perc !== null ? perc + '%' : '—'}</td>`;
-        }
+      const n = [...blocchiEsercizi[blocco]].length;
+      headerBlocchi += `<th colspan="${n}" style="background:#142ecb;color:#fff;padding:10px 14px;text-align:center;font-size:13px;font-weight:700;border:1px solid #000">${blocco}</th>`;
+    });
+
+    // Header riga 2: esercizi
+    let headerEsercizi = '<th style="border:1px solid #000;background:#f4f5f7"></th>';
+    blocchiOrdinati.forEach(blocco => {
+      const isIso = blocco.toLowerCase().includes('isometria');
+      [...blocchiEsercizi[blocco]].forEach(e => {
+        headerEsercizi += `<th style="background:#f4f5f7;padding:8px 12px;text-align:center;font-size:12px;border:1px solid #000;white-space:nowrap">${e}<br><span style="color:#666;font-size:10px">${isIso ? 'TUT %' : 'Tonn. %'}</span></th>`;
       });
     });
 
-    righeAtleti += `<tr>${celle}</tr>`;
+    // Righe atleti
+    const atleti = Object.keys(struttura).sort((a, b) => (profileMap[a]?.nome || a).localeCompare(profileMap[b]?.nome || b));
+    let righeAtleti = '';
+    atleti.forEach((email, idx) => {
+      const p = profileMap[email];
+      const nome = p?.nome || email;
+      const rowBg = idx % 2 === 0 ? '#ffffff' : '#f9f9f9';
+
+      let celle = `<td style="background:${rowBg};padding:10px 14px;font-weight:700;font-size:14px;border:1px solid #000;white-space:nowrap">${nome}</td>`;
+
+      blocchiOrdinati.forEach(blocco => {
+        [...blocchiEsercizi[blocco]].forEach(eserc => {
+          const dati = struttura[email]?.[blocco]?.[eserc];
+          if (!dati) {
+            celle += `<td style="background:${rowBg};padding:10px 14px;text-align:center;border:1px solid #000;color:#999;font-size:13px">—</td>`;
+          } else {
+            const perc = dati.pianTot > 0 ? Math.round(dati.esegTot / dati.pianTot * 100) : null;
+            celle += `<td style="background:${rowBg};padding:10px 14px;text-align:center;border:1px solid #000;font-size:14px;font-weight:700;color:${percColor(perc)}">${perc !== null ? perc + '%' : '—'}</td>`;
+          }
+        });
+      });
+
+      righeAtleti += `<tr>${celle}</tr>`;
+    });
+
+    sezioniHtml += `
+      <div style="margin-bottom:32px">
+        <div style="background:#111;color:#fff;padding:12px 20px;font-size:16px;font-weight:700;letter-spacing:2px;text-transform:uppercase;border-radius:8px 8px 0 0">${squadra}</div>
+        <div style="overflow-x:auto">
+          <table style="border-collapse:collapse;width:100%">
+            <thead><tr>${headerBlocchi}</tr><tr>${headerEsercizi}</tr></thead>
+            <tbody>${righeAtleti}</tbody>
+          </table>
+        </div>
+      </div>`;
   });
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Arial,sans-serif;background:#f4f5f7;padding:32px;margin:0">
@@ -121,10 +155,7 @@ async function main() {
       <div style="color:rgba(255,255,255,0.85);font-size:13px;letter-spacing:2px;text-transform:uppercase">Riepilogo Settimanale · ${settLabel}</div>
     </div>
     <div style="padding:24px 32px;overflow-x:auto">
-      <table style="border-collapse:collapse;width:100%">
-        <thead><tr>${headerBlocchi}</tr><tr>${headerEsercizi}</tr></thead>
-        <tbody>${righeAtleti}</tbody>
-      </table>
+      ${sezioniHtml}
     </div>
     <div style="padding:16px 32px;border-top:1px solid #000;display:flex;gap:24px;flex-wrap:wrap">
       <span style="font-size:12px;color:#333">Legenda:</span>
