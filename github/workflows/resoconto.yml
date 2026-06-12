@@ -14,6 +14,7 @@ jobs:
         with:
           node-version: '20'
       - run: npm install resend
+      - run: head -5 .github/scripts/resoconto.js
       - run: node .github/scripts/resoconto.js
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
