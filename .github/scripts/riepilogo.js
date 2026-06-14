@@ -38,6 +38,9 @@ async function main() {
   // Carica tutti i risultati: sia quelli principali (completato=true) che i per-rep (rep_idx not null)
   const risultati = await query('risultati', `sessione_id=in.(${sessioneIds})&select=*`);
   const profiles = await query('profiles', `ruolo=eq.atleta&select=email,nome,cognome,gruppo`);
+  const noteSettimana = await query('note_atleta', `data=gte.${dataInizio}&data=lte.${dataFine}&select=*`);
+  const noteMap = {};
+  (noteSettimana||[]).forEach(n => { noteMap[n.atleta_email+'|'+n.data+'|'+(n.blocco||'')+'|'+n.esercizio] = n.nota; });
 
   const profileMap = {};
   (profiles || []).forEach(p => { profileMap[p.email] = p; });
@@ -191,6 +194,33 @@ async function main() {
       righeAtleti += `<tr>${celle}</tr>`;
     });
 
+    // Note atleti della settimana per questa squadra, raggruppate per blocco
+    const atletiSet = new Set(atleti);
+    const noteSquadra = (noteSettimana||[]).filter(n => atletiSet.has(n.atleta_email) && n.nota);
+    const notePerBlocco = {};
+    noteSquadra.forEach(n => {
+      const bl = n.blocco || '';
+      if (!notePerBlocco[bl]) notePerBlocco[bl] = [];
+      const pN = profileMap[n.atleta_email];
+      const nomeAtl = pN ? `${pN.nome||''} ${pN.cognome||''}`.trim() || n.atleta_email : n.atleta_email;
+      notePerBlocco[bl].push({ nomeAtl, esercizio: n.esercizio, nota: n.nota });
+    });
+    let noteHtml = '';
+    blocchiOrdinati.forEach(bl => {
+      const voci = notePerBlocco[bl];
+      if (!voci || voci.length === 0) return;
+      noteHtml += `<div style="margin-bottom:8px"><span style="font-size:13px;font-weight:700;color:#142ecb">${bl}:</span><ul style="margin:4px 0 0;padding-left:18px">`;
+      voci.forEach(({nomeAtl, esercizio, nota}) => {
+        noteHtml += `<li style="font-size:13px;color:#333">${nomeAtl} — <strong>${esercizio}:</strong> ${nota}</li>`;
+      });
+      noteHtml += '</ul></div>';
+    });
+    const noteSezioneHtml = noteHtml ? `
+      <div style="padding:12px 20px;background:#fffbf5;border-top:2px solid #fe6d0d">
+        <div style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700">📝 Note atleti</div>
+        ${noteHtml}
+      </div>` : '';
+
     sezioniHtml += `
       <div style="margin-bottom:32px">
         <div style="background:#111;color:#fff;padding:12px 20px;font-size:16px;font-weight:700;letter-spacing:2px;text-transform:uppercase;border-radius:8px 8px 0 0">${squadra}</div>
@@ -200,6 +230,7 @@ async function main() {
             <tbody>${righeAtleti}</tbody>
           </table>
         </div>
+        ${noteSezioneHtml}
       </div>`;
   });
 
