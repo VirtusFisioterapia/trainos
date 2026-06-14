@@ -77,14 +77,16 @@ async function main() {
       : [];
 
     if (isHolding) {
-      // Per holding: accumula serie con dettaglio rep
-      const reps = repRecords.map(r => ({
-        kg: r.kg_rep,
-        tut: r.tut_eseguito
-      }));
-      d.serie.push({
-        piano: { rip: s.rip_piano || 0, tut: s.tut_piano || 0, kg: s.kg_piano },
-        reps
+      // Per holding: accumula kg e TUT pianificati vs eseguiti
+      const nRep = s.rip_piano || 0;
+      const kgPiano = (s.kg_piano || 0) * nRep; // kg totali pianificati per la serie
+      const tutPiano = (s.tut_piano || 0) * nRep; // TUT totali pianificati per la serie
+      d.kgPiano = (d.kgPiano || 0) + kgPiano;
+      d.tutPiano = (d.tutPiano || 0) + tutPiano;
+      // Dai record per-rep: somma kg e TUT effettivi
+      repRecords.forEach(r => {
+        d.kgEseg = (d.kgEseg || 0) + (r.kg_rep || 0);
+        d.tutEseg = (d.tutEseg || 0) + (r.tut_eseguito || 0);
       });
     } else if (isPushing) {
       d.pianTot += (s.rip_piano || 0) * (s.tut_piano || 0);
@@ -97,28 +99,18 @@ async function main() {
 
   const percColor = (p) => p === null ? '#999' : p >= 95 ? '#16a34a' : p >= 75 ? '#f97316' : '#dc2626';
 
-  // Genera cella per holding: mostra rep per rep kg × tut
+  // Genera due celle per holding: % kg e % TUT
   function cellaHolding(dati, rowBg) {
-    if (!dati || dati.serie.length === 0) {
-      return `<td style="background:${rowBg};padding:10px 14px;text-align:center;border:1px solid #000;color:#999;font-size:12px">—</td>`;
-    }
-    let righe = '';
-    dati.serie.forEach((serie, si) => {
-      if (serie.reps.length === 0) {
-        righe += `<div style="font-size:11px;color:#999">S${si+1}: non eseguita</div>`;
-      } else {
-        const repStr = serie.reps.map((r, ri) => {
-          const kg = r.kg != null ? r.kg + 'kg' : '—';
-          const tut = r.tut != null ? r.tut + 's' : '—';
-          const tutOk = r.tut != null && serie.piano.tut > 0;
-          const color = tutOk ? (r.tut > serie.piano.tut ? '#16a34a' : r.tut === serie.piano.tut ? '#16a34a' : r.tut > 0 ? '#f97316' : '#dc2626') : '#999';
-          const bold = tutOk && r.tut > serie.piano.tut ? 'font-weight:700;' : '';
-          return `<span style="color:${color};${bold}white-space:nowrap">R${ri+1}:${kg}×${tut}</span>`;
-        }).join(' ');
-        righe += `<div style="font-size:11px;margin-bottom:2px"><span style="color:#666">S${si+1}</span> ${repStr}</div>`;
-      }
-    });
-    return `<td style="background:${rowBg};padding:8px 12px;border:1px solid #000;font-size:12px;min-width:140px">${righe}</td>`;
+    const nulla = `<td style="background:${rowBg};padding:10px 14px;text-align:center;border:1px solid #000;color:#999;font-size:13px">—</td>`;
+    if (!dati || (!dati.kgPiano && !dati.tutPiano)) return nulla + nulla;
+    const percKg = dati.kgPiano > 0 ? Math.round((dati.kgEseg || 0) / dati.kgPiano * 100) : null;
+    const percTut = dati.tutPiano > 0 ? Math.round((dati.tutEseg || 0) / dati.tutPiano * 100) : null;
+    const cKg = percKg === null ? '#999' : percKg >= 95 ? '#16a34a' : percKg >= 75 ? '#f97316' : '#dc2626';
+    const cTut = percTut === null ? '#999' : percTut >= 95 ? '#16a34a' : percTut >= 75 ? '#f97316' : '#dc2626';
+    const bKg = percKg !== null && percKg > 100 ? 'font-weight:700;' : '';
+    const bTut = percTut !== null && percTut > 100 ? 'font-weight:700;' : '';
+    return `<td style="background:${rowBg};padding:10px 14px;text-align:center;border:1px solid #000;font-size:14px;${bKg}color:${cKg}">${percKg !== null ? percKg + '%' : '—'}</td>` +
+           `<td style="background:${rowBg};padding:10px 14px;text-align:center;border:1px solid #000;font-size:14px;${bTut}color:${cTut}">${percTut !== null ? percTut + '%' : '—'}</td>`;
   }
 
   // Genera HTML per sezioni squadre
@@ -141,7 +133,10 @@ async function main() {
     // Header riga 1: blocchi
     let headerBlocchi = '<th style="background:#f4f5f7;padding:10px 14px;text-align:left;font-size:12px;border:1px solid #000;min-width:160px">Atleta</th>';
     blocchiOrdinati.forEach(blocco => {
-      const n = [...blocchiEsercizi[blocco]].length;
+      const bLow = blocco.toLowerCase();
+      const nEserc = [...blocchiEsercizi[blocco]].length;
+      // Le holding hanno 2 colonne per esercizio (kg% e TUT%)
+      const n = bLow.includes('holding') ? nEserc * 2 : nEserc;
       headerBlocchi += `<th colspan="${n}" style="background:#142ecb;color:#fff;padding:10px 14px;text-align:center;font-size:13px;font-weight:700;border:1px solid #000">${blocco}</th>`;
     });
 
@@ -152,8 +147,13 @@ async function main() {
       const isHolding = bloccoLower.includes('holding');
       const isPushing = bloccoLower.includes('isometria') && !isHolding;
       [...blocchiEsercizi[blocco]].forEach(e => {
-        const etichetta = isHolding ? 'kg × TUT per rep' : isPushing ? 'TUT %' : 'Tonn. %';
-        headerEsercizi += `<th style="background:#f4f5f7;padding:8px 12px;text-align:center;font-size:12px;border:1px solid #000;white-space:nowrap">${e}<br><span style="color:#666;font-size:10px">${etichetta}</span></th>`;
+        if (isHolding) {
+          headerEsercizi += `<th style="background:#f4f5f7;padding:8px 12px;text-align:center;font-size:12px;border:1px solid #000;white-space:nowrap">${e}<br><span style="color:#666;font-size:10px">Kg %</span></th>`;
+          headerEsercizi += `<th style="background:#f4f5f7;padding:8px 12px;text-align:center;font-size:12px;border:1px solid #000;white-space:nowrap">${e}<br><span style="color:#666;font-size:10px">TUT %</span></th>`;
+        } else {
+          const etichetta = isPushing ? 'TUT %' : 'Tonn. %';
+          headerEsercizi += `<th style="background:#f4f5f7;padding:8px 12px;text-align:center;font-size:12px;border:1px solid #000;white-space:nowrap">${e}<br><span style="color:#666;font-size:10px">${etichetta}</span></th>`;
+        }
       });
     });
 
