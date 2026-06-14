@@ -1,0 +1,3339 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#f4f5f7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="VIRTUS">
+<link rel="manifest" href="#" id="manifest-link">
+<title>VIRTUS — Virtus Team Performance</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg: #f4f5f7;
+  --bg2: #ffffff;
+  --bg3: #eef0f3;
+  --border: #000000;
+  --accent: #fe6d0d;
+  --accent2: #142ecb;
+  --text: #111111;
+  --text2: #333333;
+  --text3: #666666;
+  --success: #16a34a;
+  --danger: #dc2626;
+  --card: #ffffff;
+  --radius: 12px;
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ═══════════════════════════════════════
+   LOADING SCREEN
+═══════════════════════════════════════ */
+#loading-screen {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 20px;
+  z-index: 9999;
+  transition: opacity 0.4s;
+}
+.loading-logo {
+  font-family: var(--font-display);
+  font-size: 64px;
+  letter-spacing: 4px;
+  color: var(--accent);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+.loading-bar {
+  width: 120px; height: 2px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.loading-bar::after {
+  content: '';
+  display: block;
+  height: 100%;
+  width: 40%;
+  background: var(--accent);
+  animation: slide 1s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.5 } }
+@keyframes slide { 0% { transform:translateX(-100%) } 100% { transform:translateX(350%) } }
+
+/* ═══════════════════════════════════════
+   GDPR SCREEN
+═══════════════════════════════════════ */
+#gdpr-screen {
+  display: none;
+  position: fixed; inset: 0;
+  background: var(--bg);
+  z-index: 999;
+  overflow-y: auto;
+  padding: 40px 20px;
+}
+.gdpr-box {
+  max-width: 600px;
+  margin: 0 auto;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 40px;
+}
+.gdpr-box h1 {
+  font-family: var(--font-display);
+  font-size: 36px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.gdpr-box h2 { font-size: 18px; color: var(--text2); font-weight: 400; margin-bottom: 24px; }
+.gdpr-section { margin-bottom: 20px; }
+.gdpr-section h3 { font-size: 14px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.gdpr-section p { font-size: 14px; color: var(--text2); line-height: 1.6; }
+.gdpr-checkbox {
+  display: flex; align-items: flex-start; gap: 12px;
+  margin: 24px 0;
+  padding: 16px;
+  background: var(--bg3);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.gdpr-checkbox input { width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px; accent-color: var(--accent); }
+.gdpr-checkbox label { font-size: 14px; line-height: 1.5; cursor: pointer; }
+
+/* ═══════════════════════════════════════
+   LOGIN
+═══════════════════════════════════════ */
+#login-screen {
+  display: none;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.login-container {
+  width: 100%;
+  max-width: 420px;
+}
+.login-logo {
+  font-family: var(--font-display);
+  font-size: 72px;
+  letter-spacing: 6px;
+  color: #142ecb;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.login-sub {
+  font-size: 13px;
+  color: #111;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 48px;
+  font-family: var(--font-mono);
+}
+.login-form { display: flex; flex-direction: column; gap: 16px; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group label { font-size: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; font-family: var(--font-mono); }
+
+input[type="email"], input[type="password"], input[type="text"], input[type="number"], select, textarea {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  padding: 12px 16px;
+  outline: none;
+  transition: border-color 0.2s;
+  width: 100%;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 13px 24px;
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+  text-decoration: none;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
+.btn-secondary { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { background: #ef4444; }
+.btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+.btn-ghost:hover { color: var(--text); border-color: var(--text3); }
+.btn-full { width: 100%; }
+.btn-sm { padding: 8px 16px; font-size: 13px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.login-divider { text-align: center; color: var(--text3); font-size: 13px; margin: 4px 0; }
+
+/* ═══════════════════════════════════════
+   APP LAYOUT
+═══════════════════════════════════════ */
+#app { display: none; min-height: 100vh; flex-direction: column; }
+
+/* Header */
+.header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  height: 60px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+.header-logo { font-family: var(--font-display); font-size: 28px; letter-spacing: 3px; color: #142ecb; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.header-user { font-size: 13px; color: #111; font-family: var(--font-mono); }
+.badge-role {
+  font-size: 10px; font-weight: 600; padding: 3px 8px;
+  border-radius: 20px; text-transform: uppercase; letter-spacing: 1px;
+  font-family: var(--font-mono);
+}
+.badge-coach { background: var(--accent); color: #fff; }
+.badge-athlete { background: var(--bg3); color: var(--text2); border: 1px solid var(--border); }
+
+/* Nav */
+.nav {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  display: flex; gap: 4px;
+  overflow-x: auto;
+}
+.nav-btn {
+  padding: 14px 20px;
+  font-size: 13px; font-weight: 500;
+  color: var(--text2);
+  cursor: pointer;
+  border: none; background: none;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: all 0.15s;
+  font-family: var(--font-body);
+}
+.nav-btn:hover { color: var(--text); }
+.nav-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Main content */
+.main { flex: 1; padding: 24px 20px; max-width: 1200px; margin: 0 auto; width: 100%; }
+
+/* ═══════════════════════════════════════
+   CARDS & SECTIONS
+═══════════════════════════════════════ */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.card-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 2px;
+  color: #111;
+  margin-bottom: 16px;
+}
+.section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
+}
+.section-title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  letter-spacing: 2px;
+  color: #111;
+}
+
+/* Stats grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.stat-value { font-family: var(--font-display); font-size: 40px; color: var(--accent); letter-spacing: 2px; }
+.stat-label { font-size: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; padding: 10px 14px; color: var(--text3); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--border); font-family: var(--font-mono); font-weight: 500; }
+td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--bg3); }
+
+/* Workout view */
+.workout-day {
+  margin-bottom: 24px;
+}
+.workout-day-header {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.workout-date {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 1px;
+  color: var(--accent);
+}
+.workout-blocco { font-size: 12px; color: var(--text2); font-family: var(--font-mono); }
+
+.exercise-card {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.exercise-header {
+  padding: 14px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+.exercise-name { font-weight: 600; font-size: 15px; }
+.exercise-progress { font-size: 12px; color: var(--text2); font-family: var(--font-mono); }
+.exercise-body { padding: 0 16px 16px; display: none; }
+.exercise-body.open { display: block; }
+
+/* Serie card layout - verticale, mobile-first */
+.serie-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  transition: border-color 0.2s;
+}
+.serie-card.done { border-color: var(--success); }
+.serie-card-top {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.serie-num {
+  font-family: var(--font-mono); font-size: 11px; color: var(--text3);
+  background: var(--bg3); padding: 3px 8px; border-radius: 20px;
+}
+.serie-piano {
+  font-size: 13px; color: var(--text2);
+  font-family: var(--font-mono);
+}
+.serie-inputs {
+  display: grid; grid-template-columns: 1fr 1fr 44px;
+  gap: 8px; align-items: end;
+}
+.serie-input-group { display: flex; flex-direction: column; gap: 4px; }
+.serie-input-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; }
+.serie-input-group input {
+  padding: 10px;
+  font-size: 16px;
+  border-radius: 8px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  text-align: center;
+  width: 100%;
+  -moz-appearance: textfield;
+}
+.serie-input-group input::-webkit-outer-spin-button,
+.serie-input-group input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.serie-input-group input.done { border-color: var(--success); color: var(--success); }
+.check-btn {
+  width: 44px; height: 44px;
+  border-radius: 10px;
+  border: 2px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+  color: var(--text3);
+  font-size: 18px;
+}
+.check-btn.done { border-color: var(--success); background: var(--success); color: #000; }
+
+/* salva sessione */
+.salva-sessione-btn {
+  width: 100%;
+  padding: 16px;
+  margin-top: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 12px;
+  background: var(--bg3);
+  border: 2px solid var(--border);
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-body);
+  letter-spacing: 1px;
+}
+.salva-sessione-btn.ready { background: var(--accent); border-color: var(--accent); color: #fff; }
+.salva-sessione-btn.ready:hover { background: var(--accent2); border-color: var(--accent2); }
+
+/* vecchio stile mantenuto per coach */
+.serie-row {
+  display: grid;
+  grid-template-columns: 28px 1fr 1fr 1fr auto;
+  gap: 6px; align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.serie-row:last-child { border-bottom: none; }
+.serie-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+.serie-plan { font-size: 14px; color: var(--text2); }
+
+/* Filter bar */
+.filter-bar {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.filter-bar select, .filter-bar input {
+  flex: 1; min-width: 140px; max-width: 200px;
+}
+
+/* Upload area */
+.upload-area {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 48px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.upload-area:hover, .upload-area.drag { border-color: var(--accent); background: rgba(254,109,13,0.05); }
+.upload-icon { font-size: 48px; margin-bottom: 12px; }
+.upload-text { font-size: 16px; color: var(--text2); margin-bottom: 8px; }
+.upload-sub { font-size: 13px; color: var(--text3); }
+
+/* Progress bars */
+.progress-bar-wrap { background: var(--border); border-radius: 4px; height: 6px; overflow: hidden; }
+.progress-bar { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.3s; }
+
+/* Alerts */
+.alert {
+  padding: 12px 16px; border-radius: 8px; font-size: 14px;
+  margin-bottom: 12px; display: flex; align-items: center; gap: 10px;
+}
+.alert-success { background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.3); color: var(--success); }
+.alert-error { background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.3); color: var(--danger); }
+.alert-info { background: rgba(254,109,13,0.08); border: 1px solid rgba(254,109,13,0.2); color: var(--accent); }
+
+/* Tags */
+.tag {
+  display: inline-block; padding: 3px 10px;
+  border-radius: 20px; font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  font-family: var(--font-mono);
+}
+.tag-green { background: rgba(74,222,128,0.15); color: var(--success); }
+.tag-yellow { background: rgba(254,109,13,0.15); color: var(--accent); }
+.tag-gray { background: var(--bg3); color: var(--text3); border: 1px solid var(--border); }
+.tag-orange { background: rgba(255,107,53,0.15); color: var(--accent2); }
+
+/* Modal */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+  z-index: 500; align-items: center; justify-content: center; padding: 20px;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 32px;
+  width: 100%; max-width: 480px;
+  max-height: 90vh; overflow-y: auto;
+}
+.modal-title { font-family: var(--font-display); font-size: 24px; letter-spacing: 2px; margin-bottom: 20px; }
+.modal-actions { display: flex; gap: 10px; margin-top: 24px; justify-content: flex-end; }
+
+/* Progressione chart */
+.prog-chart {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.prog-chart-title { font-size: 13px; color: var(--text2); margin-bottom: 16px; font-family: var(--font-mono); }
+.prog-bars { display: flex; align-items: flex-end; gap: 8px; height: 80px; }
+.prog-bar-item { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+.prog-bar-fill {
+  width: 100%; background: var(--accent);
+  border-radius: 4px 4px 0 0;
+  min-height: 4px;
+  transition: height 0.5s;
+  opacity: 0.8;
+}
+.prog-bar-label { font-size: 10px; color: var(--text3); font-family: var(--font-mono); text-align: center; }
+.prog-bar-val { font-size: 11px; color: var(--accent); font-family: var(--font-mono); font-weight: 600; }
+
+/* Toast */
+#toast {
+  position: fixed; bottom: 24px; right: 24px;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 20px;
+  font-size: 14px; z-index: 9998;
+  transform: translateY(100px); opacity: 0;
+  transition: all 0.3s;
+  max-width: 320px;
+}
+#toast.show { transform: translateY(0); opacity: 1; }
+#toast.success { border-color: var(--success); color: var(--success); }
+#toast.error { border-color: var(--danger); color: var(--danger); }
+
+/* Empty state */
+.empty-state {
+  text-align: center; padding: 60px 20px;
+  color: var(--text3);
+}
+.empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+.empty-text { font-size: 16px; margin-bottom: 8px; color: var(--text2); }
+.empty-sub { font-size: 13px; }
+
+/* Responsive */
+@media (max-width: 600px) {
+  .main { padding: 16px 12px; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .serie-row { grid-template-columns: 30px 1fr 1fr 1fr 28px; gap: 6px; }
+  .header-user { display: none; }
+}
+
+/* ═══════════════════════════════════════
+   TIMER RECUPERO FULLSCREEN
+═══════════════════════════════════════ */
+#recupero-screen {
+  display: none;
+  position: fixed; inset: 0;
+  background: #1a1a2e;
+  z-index: 8000;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+#recupero-screen.open { display: flex; }
+.recupero-tipo {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 16px;
+}
+.recupero-label {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 3px;
+  color: var(--text2);
+  margin-bottom: 40px;
+}
+.recupero-ring {
+  position: relative;
+  width: 260px; height: 260px;
+  margin-bottom: 48px;
+}
+.recupero-ring svg { width: 260px; height: 260px; transform: rotate(-90deg); }
+.recupero-ring-bg { fill: none; stroke: var(--border); stroke-width: 8; }
+.recupero-ring-fill {
+  fill: none; stroke: var(--accent); stroke-width: 8; stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear, stroke 0.5s;
+}
+.recupero-time {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+.recupero-seconds {
+  font-family: var(--font-display);
+  font-size: 96px; line-height: 1; letter-spacing: 4px;
+  color: var(--accent); transition: color 0.3s;
+}
+.recupero-seconds.urgent { color: var(--danger); }
+.recupero-min-label {
+  font-family: var(--font-mono); font-size: 13px;
+  color: var(--text3); letter-spacing: 2px; margin-top: 4px;
+}
+.recupero-next {
+  font-size: 14px; color: var(--text2); margin-bottom: 32px;
+  text-align: center; font-family: var(--font-mono); letter-spacing: 1px;
+}
+.recupero-actions { display: flex; gap: 12px; }
+.recupero-skip {
+  background: transparent; border: 1px solid var(--border);
+  color: var(--text3); padding: 12px 28px; border-radius: 8px;
+  font-size: 14px; cursor: pointer; font-family: var(--font-body); transition: all 0.15s;
+}
+.recupero-skip:hover { border-color: var(--text2); color: var(--text2); }
+.recupero-go {
+  background: var(--accent); border: none; color: #fff;
+  padding: 12px 32px; border-radius: 8px; font-size: 15px;
+  font-weight: 700; cursor: pointer; font-family: var(--font-body);
+  opacity: 0; pointer-events: none; transition: opacity 0.3s; letter-spacing: 1px;
+}
+.recupero-go.visible { opacity: 1; pointer-events: all; }
+
+/* Atleti list */
+.atleta-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 0; border-bottom: 1px solid var(--border);
+}
+.atleta-row:last-child { border-bottom: none; }
+.atleta-info { display: flex; flex-direction: column; gap: 2px; }
+.atleta-name { font-weight: 600; font-size: 15px; }
+.atleta-email { font-size: 12px; color: var(--text3); font-family: var(--font-mono); }
+.atleta-actions { display: flex; gap: 8px; }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading-screen">
+  <div class="loading-logo">VIRTUS</div>
+  <div class="loading-bar"></div>
+</div>
+
+<!-- GDPR -->
+<div id="gdpr-screen">
+  <div class="gdpr-box">
+    <h1>VIRTUS</h1>
+    <h2>Virtus Team Performance — Informativa Privacy</h2>
+    <div class="gdpr-section">
+      <h3>Chi siamo</h3>
+      <p>Virtus Fisioterapia e Performance è il titolare del trattamento dei tuoi dati personali raccolti attraverso questa piattaforma.</p>
+    </div>
+    <div class="gdpr-section">
+      <h3>Dati raccolti</h3>
+      <p>Raccogliamo: indirizzo email, nome, dati di allenamento (carichi, ripetizioni, sessioni) necessari per la gestione del programma sportivo personalizzato.</p>
+    </div>
+    <div class="gdpr-section">
+      <h3>Finalità</h3>
+      <p>I dati sono utilizzati esclusivamente per la gestione del programma di allenamento e il monitoraggio della progressione atletica. Non vengono ceduti a terzi né usati per finalità commerciali.</p>
+    </div>
+    <div class="gdpr-section">
+      <h3>Conservazione</h3>
+      <p>I dati sono conservati su server europei (Irlanda) tramite Supabase Inc., conformemente al GDPR. Puoi richiedere la cancellazione in qualsiasi momento direttamente dall'app o contattandoci.</p>
+    </div>
+    <div class="gdpr-section">
+      <h3>I tuoi diritti</h3>
+      <p>Hai diritto di accesso, rettifica, cancellazione (diritto all'oblio), portabilità e opposizione al trattamento. Per esercitarli: <strong>info@virtusfisio.it</strong></p>
+    </div>
+    <div class="gdpr-checkbox">
+      <input type="checkbox" id="gdpr-check">
+      <label for="gdpr-check">Ho letto l'informativa e <strong>acconsento al trattamento dei miei dati personali</strong> per le finalità indicate. Sono consapevole di poter revocare il consenso in qualsiasi momento.</label>
+    </div>
+    <div id="gdpr-alert"></div>
+    <button class="btn btn-primary btn-full" onclick="acceptGdpr()">Accetta e continua →</button>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div id="login-screen" style="display:flex">
+  <div class="login-container">
+    <div class="login-logo">VIRTUS</div>
+    <div class="login-sub">Virtus Team Performance</div>
+    <div id="login-alert"></div>
+    <div class="login-form">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="tuanome@email.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary btn-full" onclick="login()" id="btn-login">Accedi</button>
+      <div class="login-divider">oppure</div>
+      <button class="btn btn-ghost btn-full" onclick="showRegister()">Crea account atleta</button>
+    </div>
+    <div id="register-form" style="display:none">
+      <hr style="border-color:var(--border);margin:24px 0">
+      <div class="login-form">
+        <div class="form-group">
+          <label>Nome completo</label>
+          <input type="text" id="reg-nome" placeholder="Mario Rossi">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="reg-email" placeholder="mario@email.com">
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="reg-password" placeholder="minimo 6 caratteri">
+        </div>
+        <button class="btn btn-primary btn-full" onclick="register()" id="btn-register">Registrati</button>
+        <button class="btn btn-ghost btn-full" onclick="hideRegister()">← Torna al login</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none;flex-direction:column">
+  <div class="header">
+    <div class="header-logo">VIRTUS</div>
+    <div class="header-right">
+      <span class="header-user" id="header-email"></span>
+      <span class="badge-role" id="header-role"></span>
+      <button class="btn btn-ghost btn-sm" onclick="logout()">Esci</button>
+    </div>
+  </div>
+  <div class="nav" id="main-nav">
+    <!-- tabs injected by JS -->
+  </div>
+  <div class="main" id="main-content">
+    <!-- content injected by JS -->
+  </div>
+</div>
+
+<!-- RECUPERO TIMER FULLSCREEN -->
+<div id="recupero-screen">
+  <div class="recupero-tipo" id="recupero-tipo-label">RECUPERO TRA SERIE</div>
+  <div class="recupero-label" id="recupero-exercise-label">—</div>
+  <div class="recupero-ring">
+    <svg viewBox="0 0 260 260">
+      <circle class="recupero-ring-bg" cx="130" cy="130" r="118"/>
+      <circle class="recupero-ring-fill" id="recupero-ring-fill" cx="130" cy="130" r="118"/>
+    </svg>
+    <div class="recupero-time">
+      <div class="recupero-seconds" id="recupero-seconds">90</div>
+      <div class="recupero-min-label" id="recupero-min-label">SEC</div>
+    </div>
+  </div>
+  <div class="recupero-next" id="recupero-next-label">prossima: —</div>
+  <div class="recupero-actions">
+    <button class="recupero-skip" onclick="skipRecupero()">Salta recupero</button>
+    <button class="recupero-go" id="recupero-go-btn" onclick="chiudiRecupero()">VIA! →</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal" id="modal-inner"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// CONFIG SUPABASE
+// ═══════════════════════════════════════
+const SUPABASE_URL = 'https://shpwbtgsznxotwufzlcz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_VpLETUXJ_N3DQi-r92uVmw_K70YJ8-m';
+const COACH_EMAILS = ['info@virtusfisio.it']; // aggiungi email coach
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ═══════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════
+let currentUser = null;
+let currentProfile = null;
+let currentTab = 'sessioni';
+let allSessions = [];
+let allProfiles = [];
+let activeAtleta = null;
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  hide('loading-screen');
+  if (session?.user) {
+    currentUser = session.user;
+    await loadProfile();
+  } else {
+    show('login-screen', 'flex');
+  }
+}
+
+async function loadProfile() {
+  const { data } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+  currentProfile = data;
+  if (!currentProfile) {
+    // crea profilo se non esiste (coach)
+    const ruolo = COACH_EMAILS.includes(currentUser.email) ? 'coach' : 'atleta';
+    const { data: np } = await sb.from('profiles').insert({
+      id: currentUser.id,
+      email: currentUser.email,
+      nome: currentUser.user_metadata?.nome || currentUser.email.split('@')[0],
+      ruolo,
+      gdpr_consent: ruolo === 'coach',
+      gdpr_consent_date: new Date().toISOString()
+    }).select().single();
+    currentProfile = np;
+  }
+  if (currentProfile?.ruolo === 'atleta' && !currentProfile?.gdpr_consent) {
+    hide('login-screen');
+    show('gdpr-screen', 'block');
+    return;
+  }
+  startApp();
+}
+
+function startApp() {
+  hide('login-screen');
+  hide('gdpr-screen');
+  show('app', 'flex');
+  document.getElementById('header-email').textContent = currentProfile.nome || currentProfile.email;
+  const roleEl = document.getElementById('header-role');
+  roleEl.textContent = currentProfile.ruolo;
+  roleEl.className = 'badge-role ' + (currentProfile.ruolo === 'coach' ? 'badge-coach' : 'badge-athlete');
+  buildNav();
+  loadTab('sessioni');
+}
+
+function buildNav() {
+  const isCoach = currentProfile.ruolo === 'coach';
+  const tabs = isCoach
+    ? [
+        { id: 'dashboard', label: '📊 Dashboard' },
+        { id: 'sessioni', label: '📋 Sessioni' },
+        { id: 'atleti', label: '👥 Atleti' },
+        { id: 'carica', label: '📋 Gestione Template' },
+        { id: 'genera', label: '📅 Genera sessioni' },
+        { id: 'progressione', label: '📈 Progressione' },
+        { id: 'esporta', label: '💾 Esporta' },
+      ]
+    : [
+        { id: 'sessioni', label: '💪 Allenamenti' },
+        { id: 'progressione', label: '📈 Progressione' },
+        { id: 'privacy', label: '🔒 Privacy' },
+      ];
+  const nav = document.getElementById('main-nav');
+  nav.innerHTML = tabs.map(t =>
+    `<button class="nav-btn ${t.id === currentTab ? 'active' : ''}" onclick="loadTab('${t.id}')">${t.label}</button>`
+  ).join('');
+}
+
+function loadTab(tab) {
+  currentTab = tab;
+  buildNav();
+  const content = document.getElementById('main-content');
+  content.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text3)">Caricamento...</div>';
+  const fns = {
+    dashboard: renderDashboard,
+    sessioni: renderSessioni,
+    atleti: renderAtleti,
+    carica: renderCarica,
+    genera: renderGenera,
+    progressione: renderProgressione,
+    esporta: renderEsporta,
+    privacy: renderPrivacy,
+  };
+  if (fns[tab]) fns[tab]();
+}
+
+// ═══════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════
+async function login() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-password').value;
+  if (!email || !pass) return showAlert('login-alert', 'Compila tutti i campi', 'error');
+  setLoading('btn-login', true);
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  setLoading('btn-login', false);
+  if (error) return showAlert('login-alert', error.message === 'Invalid login credentials' ? 'Email o password errati' : error.message, 'error');
+  currentUser = data.user;
+  await loadProfile();
+}
+
+async function register() {
+  const nome = document.getElementById('reg-nome').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const pass = document.getElementById('reg-password').value;
+  if (!nome || !email || !pass) return showAlert('login-alert', 'Compila tutti i campi', 'error');
+  if (pass.length < 6) return showAlert('login-alert', 'Password minimo 6 caratteri', 'error');
+  setLoading('btn-register', true);
+  const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { nome } } });
+  setLoading('btn-register', false);
+  if (error) return showAlert('login-alert', error.message, 'error');
+  if (data.user) {
+    currentUser = data.user;
+    await sb.from('profiles').insert({
+      id: data.user.id, email, nome, ruolo: 'atleta',
+      gdpr_consent: false
+    });
+    await loadProfile();
+  } else {
+    showAlert('login-alert', 'Controlla la tua email per confermare la registrazione', 'success');
+  }
+}
+
+async function logout() {
+  await sb.auth.signOut();
+  currentUser = null; currentProfile = null; allSessions = [];
+  hide('app'); show('login-screen', 'flex');
+}
+
+async function acceptGdpr() {
+  if (!document.getElementById('gdpr-check').checked) {
+    document.getElementById('gdpr-alert').innerHTML = '<div class="alert alert-error">Devi accettare l\'informativa per continuare</div>';
+    return;
+  }
+  await sb.from('profiles').update({ gdpr_consent: true, gdpr_consent_date: new Date().toISOString() }).eq('id', currentUser.id);
+  currentProfile.gdpr_consent = true;
+  startApp();
+}
+
+function showRegister() {
+  document.getElementById('register-form').style.display = 'block';
+  document.getElementById('login-form') && (document.querySelector('.login-form').style.display = 'none');
+}
+function hideRegister() {
+  document.getElementById('register-form').style.display = 'none';
+  document.querySelector('.login-form').style.display = 'flex';
+}
+
+// ═══════════════════════════════════════
+// DASHBOARD (COACH)
+// ═══════════════════════════════════════
+async function renderDashboard() {
+  const [{ data: sessioni }, { data: profiles }, { data: risultati }] = await Promise.all([
+    sb.from('sessioni').select('*'),
+    sb.from('profiles').select('*').eq('ruolo', 'atleta'),
+    sb.from('risultati').select('*').eq('completato', true)
+  ]);
+  const totalSessioni = new Set((sessioni||[]).map(s => s.atleta_email + s.data)).size;
+  const totalEsercizi = (sessioni||[]).length;
+  const totalAtleti = (profiles||[]).length;
+  const totalCompletate = (risultati||[]).length;
+
+  document.getElementById('main-content').innerHTML = `
+    <div class="section-header">
+      <div class="section-title">DASHBOARD</div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-value">${totalAtleti}</div><div class="stat-label">Atleti</div></div>
+      <div class="stat-card"><div class="stat-value">${totalSessioni}</div><div class="stat-label">Sessioni</div></div>
+      <div class="stat-card"><div class="stat-value">${totalEsercizi}</div><div class="stat-label">Serie pianificate</div></div>
+      <div class="stat-card"><div class="stat-value">${totalCompletate}</div><div class="stat-label">Serie completate</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">ATLETI ATTIVI</div>
+      ${(profiles||[]).length === 0 ? '<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">Nessun atleta registrato</div></div>' :
+        (profiles||[]).map(p => {
+          const mie = (sessioni||[]).filter(s => s.atleta_email === p.email);
+          const completate = (risultati||[]).filter(r => mie.some(m => m.id === r.sessione_id)).length;
+          const perc = mie.length > 0 ? Math.round(completate / mie.length * 100) : 0;
+          return `<div class="atleta-row">
+            <div class="atleta-info">
+              <div class="atleta-name">${p.nome || p.email}</div>
+              <div class="atleta-email">${p.email}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="width:100px">
+                <div class="progress-bar-wrap"><div class="progress-bar" style="width:${perc}%"></div></div>
+                <div style="font-size:11px;color:var(--text3);margin-top:3px;font-family:var(--font-mono)">${perc}% completato</div>
+              </div>
+              <span class="tag ${p.gdpr_consent ? 'tag-green' : 'tag-orange'}">${p.gdpr_consent ? 'GDPR ✓' : 'Attesa GDPR'}</span>
+            </div>
+          </div>`;
+        }).join('')
+      }
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════
+// SESSIONI
+// ═══════════════════════════════════════
+async function renderSessioni() {
+  const isCoach = currentProfile.ruolo === 'coach';
+  let query = sb.from('sessioni').select('*').eq('is_template', false).order('data', { ascending: true }).order('ordine', { ascending: true });
+  if (!isCoach) query = query.eq('atleta_email', currentProfile.email);
+  const { data: sessioni } = await query;
+  allSessions = sessioni || [];
+
+  let { data: risultati } = await sb.from('risultati').select('*');
+  risultati = risultati || [];
+
+  // Carica profili per mostrare nome/cognome e filtrare per squadra
+  const { data: profsSess } = await sb.from('profiles').select('email, gruppo, nome, cognome').eq('ruolo', 'atleta');
+  const profMapSess = {};
+  (profsSess||[]).forEach(p => { profMapSess[p.email] = p; });
+  window._sessProfileMap = profMapSess;
+  const nomeAtletaSess = (email) => {
+    const p = profMapSess[email];
+    if (p && (p.nome || p.cognome)) return `${p.nome||''} ${p.cognome||''}`.trim();
+    return email;
+  };
+
+  // Raggruppa per data + atleta + blocco
+  const grouped = {};
+  allSessions.forEach(s => {
+    const key = s.data + '|' + s.atleta_email + '|' + (s.blocco || '');
+    if (!grouped[key]) grouped[key] = { data: s.data, atleta: s.atleta_email, blocco: s.blocco, esercizi: {} };
+    const exKey = s.esercizio;
+    if (!grouped[key].esercizi[exKey]) grouped[key].esercizi[exKey] = [];
+    grouped[key].esercizi[exKey].push(s);
+  });
+
+  // Filtri
+  const blocchi = [...new Set(allSessions.map(s => s.blocco))].filter(Boolean);
+  const atleti = [...new Set(allSessions.map(s => s.atleta_email))].filter(Boolean);
+
+  // Date disponibili per atleta
+  const date = [...new Set(allSessions.map(s => s.data))].filter(Boolean).sort();
+
+  document.getElementById('main-content').innerHTML = `
+    <div class="section-header">
+      <div class="section-title">${isCoach ? 'SESSIONI' : 'I MIEI ALLENAMENTI'}</div>
+    </div>
+    ${isCoach ? `
+    <div class="filter-bar">
+      <select id="f-squadra" onchange="filterSquadraSessioni()"><option value="">Tutte le squadre</option>${[...new Set(atleti.map(a => profMapSess[a]?.gruppo || 'Senza squadra'))].sort().map(sq => `<option value="${sq}">${sq}</option>`).join('')}</select>
+      <select id="f-atleta" onchange="filterSessioni()"><option value="">Tutti gli atleti</option>${atleti.slice().sort((a,b)=>nomeAtletaSess(a).localeCompare(nomeAtletaSess(b))).map(a => `<option value="${a}">${nomeAtletaSess(a)}</option>`).join('')}</select>
+      <select id="f-blocco" onchange="filterSessioni()"><option value="">Tutti i blocchi</option>${blocchi.map(b => `<option value="${b}">${b}</option>`).join('')}</select>
+      <input type="text" id="f-cerca" placeholder="Cerca esercizio..." oninput="filterSessioni()">
+    </div>
+    ` : `
+    <div style="margin-bottom:20px">
+      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-family:var(--font-mono)">Scegli sessione</div>
+      <select id="f-data-atleta" onchange="filterDataAtleta(this.value)" style="width:100%;max-width:360px;font-size:15px;padding:12px 16px">
+        <option value="">Tutte le sessioni</option>
+        ${date.map(d => {
+          const df = new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+          return `<option value="${d}">${df}</option>`;
+        }).join('')}
+      </select>
+    </div>
+    `}
+    <div id="sessioni-list"></div>
+  `;
+
+  renderSessioniList(grouped, risultati);
+
+  // Per atleta: seleziona automaticamente oggi o la data più vicina
+  if (!isCoach && date.length > 0) {
+    const oggi = new Date().toISOString().split('T')[0];
+    let dataSelezionata = date.find(d => d === oggi); // oggi
+    if (!dataSelezionata) dataSelezionata = date.find(d => d > oggi); // prossima futura
+    if (!dataSelezionata) dataSelezionata = date[date.length - 1]; // ultima passata
+    if (dataSelezionata) {
+      setTimeout(() => filterDataAtleta(dataSelezionata), 50);
+    }
+  }
+}
+
+async function filterDataAtleta(data) {
+  // aggiorna select
+  const sel = document.getElementById('f-data-atleta');
+  if (sel) sel.value = data;
+
+  let filtered = allSessions.filter(s => !data || s.data === data);
+  const grouped = {};
+  filtered.forEach(s => {
+    const key = s.data + '|' + s.atleta_email + '|' + (s.blocco || '');
+    if (!grouped[key]) grouped[key] = { data: s.data, atleta: s.atleta_email, blocco: s.blocco, esercizi: {} };
+    if (!grouped[key].esercizi[s.esercizio]) grouped[key].esercizi[s.esercizio] = [];
+    grouped[key].esercizi[s.esercizio].push(s);
+  });
+  const { data: risultati } = await sb.from('risultati').select('*');
+  renderSessioniList(grouped, risultati || []);
+}
+
+function filterSquadraSessioni() {
+  const squadra = document.getElementById('f-squadra')?.value || '';
+  const profMap = window._sessProfileMap || {};
+  const selA = document.getElementById('f-atleta');
+  const nomeAtl = (email) => {
+    const p = profMap[email];
+    if (p && (p.nome || p.cognome)) return `${p.nome||''} ${p.cognome||''}`.trim();
+    return email;
+  };
+  const atleti = [...new Set(allSessions.map(s => s.atleta_email))].filter(Boolean)
+    .filter(e => !squadra || (profMap[e]?.gruppo || 'Senza squadra') === squadra)
+    .sort((a,b) => nomeAtl(a).localeCompare(nomeAtl(b)));
+  selA.innerHTML = '<option value="">Tutti gli atleti</option>' +
+    atleti.map(a => `<option value="${a}">${nomeAtl(a)}</option>`).join('');
+  filterSessioni();
+}
+
+function filterSessioni() {
+  const squadra = document.getElementById('f-squadra')?.value || '';
+  const atleta = document.getElementById('f-atleta')?.value || '';
+  const blocco = document.getElementById('f-blocco')?.value || '';
+  const cerca = document.getElementById('f-cerca')?.value.toLowerCase() || '';
+  const profMap = window._sessProfileMap || {};
+
+  let filtered = allSessions.filter(s =>
+    (!squadra || (profMap[s.atleta_email]?.gruppo || 'Senza squadra') === squadra) &&
+    (!atleta || s.atleta_email === atleta) &&
+    (!blocco || s.blocco === blocco) &&
+    (!cerca || s.esercizio.toLowerCase().includes(cerca))
+  );
+
+  const grouped = {};
+  filtered.forEach(s => {
+    const key = s.data + '|' + s.atleta_email + '|' + (s.blocco || '');
+    if (!grouped[key]) grouped[key] = { data: s.data, atleta: s.atleta_email, blocco: s.blocco, esercizi: {} };
+    if (!grouped[key].esercizi[s.esercizio]) grouped[key].esercizi[s.esercizio] = [];
+    grouped[key].esercizi[s.esercizio].push(s);
+  });
+
+  sb.from('risultati').select('*').then(({ data: risultati }) => {
+    window._lastRepRecords = (risultati||[]).filter(r => r.rep_idx != null);
+    renderSessioniList(grouped, risultati || []);
+  });
+}
+
+// Formatta secondi totali: 120 → "2m", 90 → "1m30s", 45 → "45s"
+function totSecLabel(sec) {
+  sec = Math.round(sec || 0);
+  if (sec >= 60) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return m + 'm' + (s ? s + 's' : '');
+  }
+  return sec + 's';
+}
+
+function renderSessioniList(grouped, risultati) {
+  const container = document.getElementById('sessioni-list');
+  if (!container) return;
+  // Popola sempre i record per-rep, indipendentemente da quale funzione ha chiamato il render
+  window._lastRepRecords = (risultati || []).filter(r => r.rep_idx != null);
+  const isCoach = currentProfile.ruolo === 'coach';
+  const keys = Object.keys(grouped).sort();
+
+  if (keys.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Nessuna sessione trovata</div><div class="empty-sub">Carica un Excel per iniziare</div></div>';
+    return;
+  }
+
+  // Raggruppa le chiavi per data+atleta (per mostrare la data una sola volta)
+  const byDate = {};
+  keys.forEach(key => {
+    const day = grouped[key];
+    const dateAtleta = (day.data || 'null') + '|' + day.atleta;
+    if (!byDate[dateAtleta]) byDate[dateAtleta] = [];
+    byDate[dateAtleta].push(key);
+  });
+
+  container.innerHTML = Object.entries(byDate).map(([dateAtleta, blockKeys]) => {
+    const firstDay = grouped[blockKeys[0]];
+    const dateFormatted = firstDay.data ? new Date(firstDay.data + 'T12:00:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : firstDay.data;
+
+    // Calcola giaSalvataPre qui, prima del render, così il check-btn può essere disabilitato
+    const tutteLeSeriePre = blockKeys.flatMap(k => Object.values(grouped[k].esercizi).flat());
+    const totalePre = tutteLeSeriePre.length;
+    const completatePre = tutteLeSeriePre.filter(s => risultati.some(r => r.sessione_id === s.id && r.completato)).length;
+    const tuttePre = completatePre === totalePre && totalePre > 0;
+    const salvataKeyPre = !isCoach ? ('sessione_salvata_' + currentUser.id + '_' + dateAtleta) : null;
+    const giaSalvataPre = !isCoach && salvataKeyPre && localStorage.getItem(salvataKeyPre) === '1' && tuttePre;
+
+    const blocksHtml = blockKeys.map(key => {
+      const day = grouped[key];
+      return `
+        <div class="workout-block" style="margin-bottom:16px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">
+            ${isCoach ? `<div class="workout-blocco">${(() => { const p = (window._sessProfileMap||{})[day.atleta]; return p && (p.nome||p.cognome) ? `${p.nome||''} ${p.cognome||''}`.trim() : day.atleta; })()}</div><span style="color:var(--border)">·</span>` : ''}
+            <div class="workout-blocco" style="color:var(--accent)">${day.blocco || ''}</div>
+          </div>
+          ${Object.entries(day.esercizi).map(([nome, serie]) => {
+            const completate = serie.filter(s => risultati.some(r => r.sessione_id === s.id && r.completato)).length;
+            return `
+              <div class="exercise-card">
+                <div class="exercise-header" onclick="toggleExercise(this)">
+                  <div>
+                    <div class="exercise-name">${nome}</div>
+                    ${serie[0].nota ? `<div style="font-size:12px;color:var(--text3);margin-top:2px">${serie[0].nota}</div>` : ''}
+                  </div>
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <div class="exercise-progress">${completate}/${serie.length} serie</div>
+                    <div class="progress-bar-wrap" style="width:60px"><div class="progress-bar" style="width:${serie.length > 0 ? Math.round(completate/serie.length*100) : 0}%"></div></div>
+                    <span style="color:var(--text3);font-size:12px">▼</span>
+                  </div>
+                </div>
+                <div class="exercise-body">
+                  ${!isCoach ? `
+                    ${(() => {
+                      const isIso = (serie[0]?.blocco || '').toLowerCase().includes('isometria');
+                      if (!isIso) {
+                        // Rendering normale per esercizi non isometrici
+                        return serie.map((s, idx) => {
+                          const ris = risultati.find(r => r.sessione_id === s.id && r.rep_idx == null);
+                          const done = ris?.completato;
+                          const kgVal = ris?.kg_eseguito ?? s.kg_piano ?? '';
+                          const ripVal = ris?.rip_eseguito ?? s.rip_piano ?? '';
+                          const pianLabel = `Piano: ${s.kg_piano ?? '—'} kg × ${s.rip_piano ?? '—'} reps`;
+                          return `
+                            <div class="serie-card ${done ? 'done' : ''}" id="card-${s.id}">
+                              <div class="serie-card-top">
+                                <span class="serie-num">SERIE ${idx + 1}</span>
+                                <span class="serie-piano">${pianLabel}</span>
+                                ${s.recupero_serie ? `<span style="font-family:var(--font-mono);font-size:10px;color:var(--text3)">⏱ ${s.recupero_serie}s</span>` : ''}
+                              </div>
+                              <div class="serie-inputs">
+                                <div class="serie-input-group">
+                                  <div class="serie-input-label">Kg eseguiti</div>
+                                  <input type="number" class="${done ? 'done' : ''}" value="${kgVal}" id="kg-${s.id}" step="0.5" min="0" inputmode="decimal" ${(giaSalvataPre || done) ? 'disabled' : ''}>
+                                </div>
+                                <div class="serie-input-group">
+                                  <div class="serie-input-label">REPS eseguite</div>
+                                  <input type="number" class="${done ? 'done' : ''}" value="${ripVal}" id="rip-${s.id}" min="0" inputmode="numeric" ${(giaSalvataPre || done) ? 'disabled' : ''} >
+                                </div>
+                                <button class="check-btn ${done ? 'done' : ''}"
+                                  onclick="toggleSerie(${s.id}, this)"
+                                  data-iso="0"
+                                  data-recupero-serie="${s.recupero_serie || ''}"
+                                  data-esercizio="${nome}"
+                                  data-serie-idx="${idx + 1}"
+                                  data-serie-total="${serie.length}"
+                                  title="Segna completata"
+                                  ${giaSalvataPre ? 'disabled style="pointer-events:none;opacity:' + (done ? '1' : '0.4') + '"' : ''}>✓</button>
+                              </div>
+                            </div>`;
+                        }).join('');
+                      } else {
+                        // Rendering ISOMETRICO: una card per serie, con reps sequenziali
+                        const isIsoHolding = (serie[0]?.blocco || '').toLowerCase().includes('holding');
+                        return serie.map((s, serieIdx) => {
+                          const ris = risultati.find(r => r.sessione_id === s.id && r.rep_idx == null);
+                          const done = ris?.completato;
+                          const nReps = s.rip_piano || 1;
+                          const tutPiano = s.tut_piano || 30;
+                          const tutSec = tutPiano; // usato per GO!, può essere sovrascritto dall'utente
+                          const angolo = s.angolo_piano ?? '—';
+                          const recReps = s.recupero_reps || 0;
+                          const recSerie = s.recupero_serie || 0;
+                          const kgHolding = ris?.kg_eseguito ?? s.kg_piano ?? '';
+                          // Prima serie abilitata, le altre bloccate finché la precedente non è completata
+                          const isFirstSerie = serieIdx === 0;
+                          const prevDone = serieIdx === 0 ? true : (() => {
+                            const prev = serie[serieIdx - 1];
+                            const prevRis = risultati.find(r => r.sessione_id === prev.id && r.rep_idx == null);
+                            return prevRis?.completato;
+                          })();
+                          return `
+                            <div class="serie-card ${done ? 'done' : ''}" id="card-${s.id}">
+                              <div class="serie-card-top">
+                                <span class="serie-num">SERIE ${serieIdx + 1}</span>
+                                <span class="serie-piano">${nReps} reps a ${angolo}° × ${tutPiano}s${isIsoHolding && s.kg_piano != null ? ' — ' + s.kg_piano + ' kg' : ''}</span>
+                                ${recReps ? `<span style="font-family:var(--font-mono);font-size:10px;color:var(--text3)">⏱ rec rep ${recReps}s</span>` : ''}
+                              </div>
+                              ${done ? `
+                                <div style="margin-top:10px">
+                                  ${Array.from({length: nReps}, (_, repIdx) => {
+                                    const repRis = window._lastRepRecords ? window._lastRepRecords.find(r => String(r.sessione_id) === String(s.id) && r.rep_idx === repIdx) : null;
+                                    const fatte = ris?.rip_eseguito || 0;
+                                    const ok = repIdx < fatte;
+                                    let statoLabel;
+                                    if (isIsoHolding) {
+                                      // Mostra kg e TUT effettivi dal record per-rep
+                                      const kg = repRis?.kg_rep != null ? repRis.kg_rep + ' kg' : '—';
+                                      const tut = repRis?.tut_eseguito != null ? repRis.tut_eseguito + 's' : '—';
+                                      statoLabel = (repRis && (repRis.kg_rep != null || repRis.tut_eseguito != null))
+                                        ? `${kg} × ${tut}`
+                                        : (ok ? 'completata' : 'non eseguita');
+                                    } else {
+                                      // Pushing: mostra TUT effettivo
+                                      const tut = repRis?.tut_eseguito != null ? repRis.tut_eseguito + 's' : null;
+                                      statoLabel = ok ? (tut ? `completata · ${tut}` : 'completata') : 'non eseguita';
+                                    }
+                                    return `
+                                    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+                                      <span style="font-family:var(--font-mono);font-size:12px;color:var(--text3);min-width:50px">REP ${repIdx+1}/${nReps}</span>
+                                      <span style="font-size:13px;flex:1;color:var(--text2)">${statoLabel}</span>
+                                    </div>`;
+                                  }).join('')}
+                                  <div style="padding:8px 0 0;color:var(--text2);font-weight:600;font-size:13px">Serie completata — ${ris?.rip_eseguito || 0}/${nReps} reps</div>
+                                </div>
+                              ` : `
+                                <div id="iso-reps-${s.id}" style="margin-top:10px">
+                                  ${Array.from({length: nReps}, (_, repIdx) => `
+                                    <div id="iso-rep-${s.id}-${repIdx}" style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:nowrap">
+                                      <span style="font-family:var(--font-mono);font-size:11px;color:var(--text3);min-width:42px;flex-shrink:0">REP ${repIdx+1}/${nReps}</span>
+                                      <span id="iso-rep-status-${s.id}-${repIdx}" style="font-size:11px;color:var(--text3);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span>
+                                      ${isIsoHolding ? `
+                                      <input type="number" id="kg-rep-${s.id}-${repIdx}" value="${s.kg_piano ?? ''}" step="0.5" min="0" inputmode="decimal"
+                                        style="width:46px;padding:4px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:var(--font-mono);text-align:center;background:var(--bg2);flex-shrink:0" ${giaSalvataPre ? 'disabled' : ''}>
+                                      <span style="font-size:10px;color:var(--text3);flex-shrink:0">kg</span>` : ''}
+                                      <input type="number" id="tut-rep-${s.id}-${repIdx}" value="${tutSec}" min="1" inputmode="numeric"
+                                        style="width:46px;padding:4px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:var(--font-mono);text-align:center;background:var(--bg2);flex-shrink:0" ${giaSalvataPre ? 'disabled' : ''}>
+                                      <span style="font-size:10px;color:var(--text3);flex-shrink:0">s</span>
+                                      <button id="iso-go-${s.id}-${repIdx}"
+                                        onclick="avviaRepIso(${s.id}, ${repIdx}, ${nReps}, getTutPerRep(${s.id}, ${repIdx}), ${recReps}, '${nome}')"
+                                        data-blocco="${s.blocco || ''}"
+                                        data-sessione-id="${s.id}"
+                                        data-rep-idx="${repIdx}"
+                                        style="padding:8px 14px;border-radius:8px;border:2px solid var(--accent);background:var(--accent);color:#fff;font-weight:700;font-size:14px;cursor:pointer;flex-shrink:0;${(giaSalvataPre || repIdx > 0) ? 'opacity:0.3;pointer-events:none;' : ''}"
+                                        ${(giaSalvataPre || repIdx > 0) ? 'disabled' : ''}>GO!</button>
+                                    </div>
+                                  `).join('')}
+                                </div>
+                              `}
+                            </div>`;
+                        }).join('');
+                      }
+                    })()}
+                  ` : `
+                    ${(() => {
+                      const isIso = (serie[0]?.blocco || nome || '').toLowerCase().includes('isometria');
+                      const isIsoHolding = isIso && (serie[0]?.blocco || '').toLowerCase().includes('holding');
+                      return `
+                    <div class="serie-row" style="padding-bottom:4px">
+                      <div></div>
+                      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">${isIso ? 'Angolo (°)' : 'Carico previsto'}</div>
+                      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">${isIso ? 'TUT (s)' : 'REPS'}</div>
+                      <div style="font-size:11px;color:var(--success);text-transform:uppercase;letter-spacing:0.5px">Eseguito</div>
+                      <div style="font-size:11px;color:var(--success);text-transform:uppercase;letter-spacing:0.5px">%</div>
+                    </div>
+                    ${serie.map((s, idx) => {
+                      const ris = risultati.find(r => r.sessione_id === s.id && r.rep_idx == null);
+                      const repRecords = isIsoHolding ? risultati.filter(r => r.sessione_id === s.id && r.rep_idx != null).sort((a,b) => a.rep_idx - b.rep_idx) : [];
+                      const done = ris?.completato;
+                      let valPiano, valEseg, esegLabel;
+                      if (isIso) {
+                        valPiano = (s.rip_piano || 0) * (s.tut_piano || 0);
+                        valEseg = done ? (ris.rip_eseguito || 0) * (ris.tut_eseguito || 0) : 0;
+                        if (isIsoHolding) {
+                          if (repRecords.length > 0) {
+                            esegLabel = repRecords.map((r, i) => `Rep${i+1}: ${r.kg_rep != null ? r.kg_rep + 'kg' : '—'} × ${r.tut_eseguito ?? '?'}s`).join(' · ');
+                          } else if (done) {
+                            esegLabel = `${ris?.kg_eseguito != null ? ris.kg_eseguito + ' kg' : '—'} — ${ris?.rip_eseguito ?? '?'} × ${ris?.tut_eseguito ?? '?'}s`;
+                          } else {
+                            esegLabel = '—';
+                          }
+                        } else {
+                          // Pushing: mostra i secondi effettivi (TUT eseguito)
+                          esegLabel = (ris && ris.tut_eseguito != null) ? `${ris.tut_eseguito}s` : '—';
+                        }
+                      } else {
+                        valPiano = (s.kg_piano || 0) * (s.rip_piano || 0);
+                        valEseg = done ? (ris.kg_eseguito || 0) * (ris.rip_eseguito || 0) : 0;
+                        esegLabel = ris?.kg_eseguito != null ? `${ris.kg_eseguito} kg × ${ris.rip_eseguito ?? '?'}` : '—';
+                      }
+                      const sovra = done && valEseg >= valPiano;
+                      const sotto = done && valEseg < valPiano;
+                      const perc = valPiano > 0 ? Math.round(valEseg/valPiano*100) : 0;
+                      const rowBg = sovra ? 'background:rgba(74,222,128,0.12);border-radius:6px;' : sotto ? 'background:rgba(248,113,113,0.10);border-radius:6px;' : '';
+                      const statoColor = sovra ? 'var(--success)' : sotto ? 'var(--danger)' : 'var(--text3)';
+                      // Per le holding il tag % è ambiguo (kg e tut insieme): nessun tag
+                      let statoTag;
+                      if (isIsoHolding) {
+                        statoTag = `<span class="tag tag-gray">·</span>`;
+                      } else if (sovra) {
+                        statoTag = `<span class="tag tag-green" style="color:#000;background:var(--success);white-space:nowrap">↑${perc}%</span>`;
+                      } else if (sotto) {
+                        statoTag = `<span class="tag" style="background:rgba(248,113,113,0.2);color:var(--danger);white-space:nowrap">↓${perc}%</span>`;
+                      } else {
+                        statoTag = `<span class="tag tag-gray">—</span>`;
+                      }
+                      return `
+                        <div class="serie-row" style="${rowBg}">
+                          <div style="font-family:var(--font-mono);font-size:12px;color:var(--text3);text-align:center">${idx + 1}</div>
+                          <div style="font-family:var(--font-mono);font-size:13px;color:var(--text2)">${isIso ? (s.angolo_piano ?? '—') + '°' : (s.kg_piano ?? '—')}</div>
+                          <div style="font-family:var(--font-mono);font-size:13px;color:var(--text2)">${isIso ? (s.tut_piano ?? '—') + 's' : (s.rip_piano ?? '—')}</div>
+                          <div style="font-family:var(--font-mono);font-size:13px;color:${statoColor}">${esegLabel}</div>
+                          ${statoTag}
+                        </div>`;
+                    }).join('')}`;
+                    })()}
+                  `}
+                </div>
+              </div>`;
+          }).join('')}
+          ${isCoach ? (() => {
+            const tuttiEsercizi = Object.entries(day.esercizi);
+            const bloccoLow = (day.blocco || '').toLowerCase();
+            const bloccoHolding = bloccoLow.includes('holding');
+            const bloccoPushing = bloccoLow.includes('isometria') && !bloccoHolding;
+
+            // Calcola tonnellaggio e TUT per ogni esercizio
+            let totTonnP = 0, totTonnE = 0, totTutP = 0, totTutE = 0;
+            const righe = tuttiEsercizi.map(([nome, serie]) => {
+              // Tonnellaggio (normali e holding)
+              const tonnP = serie.reduce((acc, s) => acc + (s.kg_piano||0)*(s.rip_piano||0), 0);
+              const tonnE = serie.reduce((acc, s) => {
+                if (bloccoHolding) {
+                  const reps = risultati.filter(r => r.sessione_id === s.id && r.rep_idx != null);
+                  return acc + reps.reduce((a, r) => a + (r.kg_rep||0), 0);
+                }
+                const r = risultati.find(r => r.sessione_id === s.id && r.completato && r.rep_idx == null);
+                return acc + (r ? (r.kg_eseguito||0)*(r.rip_eseguito||0) : 0);
+              }, 0);
+              // TUT (pushing e holding): reps × tut
+              const tutP = serie.reduce((acc, s) => acc + (s.rip_piano||0)*(s.tut_piano||0), 0);
+              const tutE = serie.reduce((acc, s) => {
+                const r = risultati.find(r => r.sessione_id === s.id && r.completato && r.rep_idx == null);
+                return acc + (r ? (r.rip_eseguito||0)*(r.tut_eseguito||0) : 0);
+              }, 0);
+              totTonnP += tonnP; totTonnE += tonnE; totTutP += tutP; totTutE += tutE;
+
+              // Cosa mostrare per questo esercizio in base al tipo di blocco
+              const parti = [];
+              if (!bloccoPushing) {
+                // mostra tonnellaggio (normali e holding)
+                const perc = tonnP > 0 ? Math.round(tonnE/tonnP*100) : 0;
+                const color = perc >= 95 ? 'var(--success)' : perc >= 75 ? 'var(--accent)' : tonnE > 0 ? 'var(--danger)' : 'var(--text3)';
+                parti.push(`<span style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">Kg ${tonnP}</span><span style="font-family:var(--font-mono);font-size:12px;color:${color};font-weight:600">${tonnE > 0 ? tonnE+'kg ('+perc+'%)' : '—'}</span>`);
+              }
+              if (bloccoPushing || bloccoHolding) {
+                // mostra TUT (pushing e holding)
+                const perc = tutP > 0 ? Math.round(tutE/tutP*100) : 0;
+                const color = perc >= 95 ? 'var(--success)' : perc >= 75 ? 'var(--accent)' : tutE > 0 ? 'var(--danger)' : 'var(--text3)';
+                parti.push(`<span style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">TUT ${totSecLabel(tutP)}</span><span style="font-family:var(--font-mono);font-size:12px;color:${color};font-weight:600">${tutE > 0 ? totSecLabel(tutE)+' ('+perc+'%)' : '—'}</span>`);
+              }
+              return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
+                <div style="font-size:13px;color:var(--text2)">${nome}</div>
+                <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:flex-end">${parti.join('')}</div>
+              </div>`;
+            }).join('');
+
+            // Totali
+            const partiTot = [];
+            if (!bloccoPushing) {
+              const percT = totTonnP > 0 ? Math.round(totTonnE/totTonnP*100) : 0;
+              const colorT = percT >= 95 ? 'var(--success)' : percT >= 75 ? 'var(--accent)' : totTonnE > 0 ? 'var(--danger)' : 'var(--text3)';
+              partiTot.push(`<span style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">Kg ${totTonnP}</span><span style="font-family:var(--font-mono);font-size:13px;color:${colorT};font-weight:700">${totTonnE > 0 ? totTonnE+'kg ('+percT+'%)' : '—'}</span>`);
+            }
+            if (bloccoPushing || bloccoHolding) {
+              const percT = totTutP > 0 ? Math.round(totTutE/totTutP*100) : 0;
+              const colorT = percT >= 95 ? 'var(--success)' : percT >= 75 ? 'var(--accent)' : totTutE > 0 ? 'var(--danger)' : 'var(--text3)';
+              partiTot.push(`<span style="font-family:var(--font-mono);font-size:12px;color:var(--text3)">TUT ${totSecLabel(totTutP)}</span><span style="font-family:var(--font-mono);font-size:13px;color:${colorT};font-weight:700">${totTutE > 0 ? totSecLabel(totTutE)+' ('+percT+'%)' : '—'}</span>`);
+            }
+            const titoloSintesi = bloccoPushing ? 'TUT sessione' : bloccoHolding ? 'Tonnellaggio e TUT sessione' : 'Tonnellaggio sessione';
+            return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-top:8px">
+              <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-family:var(--font-mono)">${titoloSintesi}</div>
+              ${righe}
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding-top:10px;margin-top:4px;flex-wrap:wrap">
+                <div style="font-size:13px;font-weight:600">TOTALE</div>
+                <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:flex-end">${partiTot.join('')}</div>
+              </div>
+            </div>`;
+          })() : ''}
+        </div>`;
+    }).join('');
+
+    // Bottone salva unico per l'intera giornata (solo atleta)
+    let salvaBtn = '';
+    if (!isCoach) {
+      const tutteLeSerie = blockKeys.flatMap(k => Object.values(grouped[k].esercizi).flat());
+      const totale = tutteLeSerie.length;
+      const completate = tutteLeSerie.filter(s => risultati.some(r => r.sessione_id === s.id && r.completato)).length;
+      const tutte = completate === totale && totale > 0;
+      const dayKey = dateAtleta; // data|email
+      const salvataKey = 'sessione_salvata_' + currentUser.id + '_' + dayKey;
+      // Mostra "salvata" solo se il flag è presente E tutte le serie sono davvero completate
+      const giaSalvata = localStorage.getItem(salvataKey) === '1' && tutte;
+      // Se il flag è presente ma le serie non sono complete, pulisci il flag obsoleto
+      if (localStorage.getItem(salvataKey) === '1' && !tutte) {
+        localStorage.removeItem(salvataKey);
+      }
+      salvaBtn = `<button class="salva-sessione-btn ${tutte && !giaSalvata ? 'ready' : ''}" id="salva-${dayKey.replace(/\|/g,'-')}" onclick="salvaSessione('${dayKey}', ${totale})" ${(giaSalvata || !tutte) ? 'disabled style="opacity:0.5;cursor:default"' : ''}>${giaSalvata ? '✅ Sessione salvata!' : tutte ? '✅ Sessione completata — Salva (non potrai più modificare)' : `Completa tutte le serie per salvare (${completate}/${totale})`}</button>`;
+    }
+
+    return `
+      <div class="workout-day">
+        <div class="workout-day-header">
+          <div class="workout-date">${dateFormatted}</div>
+        </div>
+        ${blocksHtml}
+        ${salvaBtn}
+      </div>`;
+  }).join('');
+}
+
+function toggleExercise(header) {
+  const body = header.nextElementSibling;
+  body.classList.toggle('open');
+  header.querySelector('span:last-child').textContent = body.classList.contains('open') ? '▲' : '▼';
+}
+
+// ═══════════════════════════════════════
+// TIMER ISOMETRICO
+// ═══════════════════════════════════════
+let isoTimerState = null;
+
+// Legge il TUT dall'input della rep specifica (modificabile dall'atleta)
+function getTutPerRep(sessioneId, repIdx) {
+  const input = document.getElementById('tut-rep-' + sessioneId + '-' + repIdx);
+  if (input && input.value !== '') return Math.max(1, parseInt(input.value));
+  return 30; // fallback
+}
+
+function avviaRepIso(sessioneId, repIdx, nReps, tutSec, recReps, nomeEsercizio) {
+  const goBtn = document.getElementById('iso-go-' + sessioneId + '-' + repIdx);
+  const blocco = goBtn ? (goBtn.dataset.blocco || '') : '';
+  const isHolding = blocco.toLowerCase().includes('holding');
+  // Per holding: leggi kg dall'input specifico di questa rep
+  const kgRepInput = isHolding ? document.getElementById('kg-rep-' + sessioneId + '-' + repIdx) : null;
+  const kgHolding = kgRepInput ? (kgRepInput.value !== '' ? parseFloat(kgRepInput.value) : null) : null;
+  const kgAttuale = kgHolding;
+  if (!isoTimerState || isoTimerState.sessioneId !== sessioneId) {
+    // Prima rep della serie: inizializza stato
+    isoTimerState = {
+      sessioneId, repIdx, nReps, tutSec, recReps, nomeEsercizio,
+      paused: false, interval: null,
+      repsCompletate: 0,
+      isHolding, kgHolding,
+      kgPerRep: {},         // kg usati per ogni rep (rep_idx → kg)
+      tutEsegPerRep: {},    // TUT effettivo per ogni rep
+      secondiPercorsi: 0
+    };
+  } else {
+    // Rep successiva della stessa serie: aggiorna solo i campi necessari
+    isoTimerState.repIdx = repIdx;
+    isoTimerState.tutSec = tutSec;
+    isoTimerState.paused = false;
+    isoTimerState.secondiPercorsi = 0;
+  }
+  // Registra i kg per questa rep (potrebbero essere stati cambiati dall'utente)
+  if (isHolding) isoTimerState.kgPerRep[repIdx] = kgAttuale;
+  const s = isoTimerState;
+  mostraTimerIso('tenuta', tutSec);
+}
+
+function mostraTimerIso(fase, secondiTot) {
+  const s = isoTimerState;
+  let secondiRim = secondiTot;
+  let paused = false;
+
+  // Crea overlay fullscreen
+  let overlay = document.getElementById('iso-timer-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'iso-timer-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:#1a1a2e;z-index:9000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;';
+    document.body.appendChild(overlay);
+  }
+
+  const isTenuta = fase === 'tenuta';
+  const isRecupero = fase === 'recupero';
+
+  overlay.innerHTML = `
+    <div style="font-family:var(--font-display);font-size:18px;letter-spacing:3px;color:${isTenuta ? 'var(--accent)' : '#4ade80'}">${isTenuta ? '💪 TIENI DURO!' : '⏸ RECUPERO'}</div>
+    <div style="font-family:var(--font-display);font-size:16px;color:#fff;letter-spacing:2px">${s.nomeEsercizio} — REP ${s.repIdx + 1}/${s.nReps}</div>
+    <div style="position:relative;width:220px;height:220px">
+      <svg viewBox="0 0 220 220" style="position:absolute;inset:0;transform:rotate(-90deg)">
+        <circle cx="110" cy="110" r="100" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="12"/>
+        <circle id="iso-arc" cx="110" cy="110" r="100" fill="none" stroke="${isTenuta ? '#fe6d0d' : '#4ade80'}" stroke-width="12"
+          stroke-dasharray="${2 * Math.PI * 100}" stroke-dashoffset="0" stroke-linecap="round"
+          style="transition:stroke-dashoffset 1s linear"/>
+      </svg>
+      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+        <div id="iso-countdown" style="font-family:var(--font-display);font-size:72px;color:#fff;line-height:1">${secondiRim}</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.6);margin-top:4px">secondi</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:10px">
+      ${isTenuta ? `
+        <button id="iso-btn-stop" onclick="isoTogglePausa()" style="padding:12px 24px;border-radius:10px;border:2px solid #fff;background:transparent;color:#fff;font-size:15px;font-weight:700;cursor:pointer">⏸ Stop</button>
+        <button onclick="isoNonCeLaFaccio()" style="padding:12px 24px;border-radius:10px;border:2px solid #f97316;background:rgba(249,115,22,0.15);color:#f97316;font-size:15px;font-weight:700;cursor:pointer">⛑ Non ce la faccio più</button>
+      ` : `
+        <button onclick="isoSaltaRecupero()" style="padding:12px 24px;border-radius:10px;border:2px solid #4ade80;background:transparent;color:#4ade80;font-size:15px;font-weight:700;cursor:pointer">⏭ Salta recupero</button>
+      `}
+    </div>
+  `;
+
+  // Fischio di inizio (tenuta) o niente (recupero)
+  if (isTenuta) {
+    s.secondiPercorsi = 0; // reset per la nuova rep
+    suonaFischio();
+  }
+
+  const arc = document.getElementById('iso-arc');
+  const countdown = document.getElementById('iso-countdown');
+  const circumference = 2 * Math.PI * 100;
+
+  if (s.interval) clearInterval(s.interval);
+
+  s.interval = setInterval(() => {
+    if (paused) return;
+    // Se l'overlay è stato rimosso, ferma il timer per evitare crash
+    if (!document.getElementById('iso-timer-overlay')) { clearInterval(s.interval); return; }
+    secondiRim--;
+    if (isTenuta) s.secondiPercorsi++; // traccia i secondi completati nella rep corrente
+    if (countdown) countdown.textContent = secondiRim;
+    if (arc) arc.style.strokeDashoffset = circumference * (1 - secondiRim / secondiTot);
+
+    if (secondiRim <= 0) {
+      clearInterval(s.interval);
+      if (isTenuta) {
+        // Rep completata
+        s.repsCompletate++;
+        suonaApplauso();
+        // Salva record per-rep su Supabase (TUT per rep; kg solo per holding)
+        {
+          const kgRep = s.isHolding ? (s.kgPerRep[s.repIdx] ?? null) : null;
+          const tutRep = s.tutSec;
+          sb.from('risultati').upsert({
+            sessione_id: s.sessioneId, atleta_id: currentUser.id,
+            rep_idx: s.repIdx, kg_rep: kgRep, tut_eseguito: tutRep,
+            completato: false
+          }, { onConflict: 'sessione_id,atleta_id,rep_idx' }).then(() => {});
+        }
+        const repEl = document.getElementById(`iso-rep-${s.sessioneId}-${s.repIdx}`);
+        if (repEl) {
+          const statusEl = repEl.querySelector(`#iso-rep-status-${s.sessioneId}-${s.repIdx}`);
+          if (statusEl) { statusEl.textContent = '✅'; statusEl.style.color = '#4ade80'; }
+          const goBtn = repEl.querySelector(`#iso-go-${s.sessioneId}-${s.repIdx}`);
+          if (goBtn) { goBtn.style.opacity = '0.3'; goBtn.disabled = true; }
+          const kgRepDone = repEl.querySelector('#kg-rep-' + s.sessioneId + '-' + s.repIdx);
+          if (kgRepDone) { kgRepDone.disabled = true; kgRepDone.style.opacity = '0.4'; }
+          const tutRepDone = repEl.querySelector('#tut-rep-' + s.sessioneId + '-' + s.repIdx);
+          if (tutRepDone) { tutRepDone.disabled = true; tutRepDone.style.opacity = '0.4'; }
+        }
+        // Controlla se ci sono altre reps
+        const nextRep = s.repIdx + 1;
+        if (nextRep < s.nReps) {
+          // Avvia recupero tra reps
+          if (s.recReps > 0) {
+            s.repIdx = nextRep;
+            mostraTimerIso('recupero', s.recReps);
+          } else {
+            // Nessun recupero, vai alla prossima rep (leggi TUT dell'input corrente)
+            s.repIdx = nextRep;
+            chiudiTimerIso();
+            mostraTimerIso('tenuta', getTutPerRep(s.sessioneId, s.repIdx));
+          }
+        } else {
+          // Tutte le reps finite
+          chiudiTimerIso();
+          completaSerieIso();
+        }
+      } else {
+        // Fine recupero → prossima rep in automatico (leggi TUT dell'input corrente)
+        chiudiTimerIso();
+        mostraTimerIso('tenuta', getTutPerRep(s.sessioneId, s.repIdx));
+      }
+    }
+  }, 1000);
+
+  // Esponi pausa
+  window.isoTogglePausa = function() {
+    paused = !paused;
+    const btn = document.getElementById('iso-btn-stop');
+    if (btn) btn.textContent = paused ? '▶ Riprendi' : '⏸ Stop';
+  };
+
+  window.isoSaltaRecupero = function() {
+    clearInterval(s.interval);
+    chiudiTimerIso();
+    mostraTimerIso('tenuta', getTutPerRep(s.sessioneId, s.repIdx));
+  };
+
+  window.isoNonCeLaFaccio = function() {
+    // Interrompe la rep corrente e salva i secondi percorsi come TUT eseguito
+    clearInterval(s.interval);
+    const secondiFatti = s.secondiPercorsi || 0;
+    // Aggiorna il campo TUT della rep corrente con i secondi effettivi e lo blocca
+    const tutInput = document.getElementById('tut-rep-' + s.sessioneId + '-' + s.repIdx);
+    if (tutInput) {
+      tutInput.value = secondiFatti;
+      tutInput.disabled = true;
+    }
+    const kgRepInputInt = document.getElementById('kg-rep-' + s.sessioneId + '-' + s.repIdx);
+    if (kgRepInputInt) { kgRepInputInt.disabled = true; kgRepInputInt.style.opacity = '0.4'; }
+    const tutInputFade = document.getElementById('tut-rep-' + s.sessioneId + '-' + s.repIdx);
+    if (tutInputFade) tutInputFade.style.opacity = '0.4';
+    // Salva il TUT effettivo nello stato (usato da completaSerieIso)
+    if (!s.tutEsegPerRep) s.tutEsegPerRep = {};
+    s.tutEsegPerRep[s.repIdx] = secondiFatti;
+    // Conta come rep completata (con secondi ridotti)
+    s.repsCompletate++;
+    // Salva record per-rep su Supabase (interrotta: secondi reali; kg solo holding)
+    {
+      const kgRep = s.isHolding && s.kgPerRep ? (s.kgPerRep[s.repIdx] ?? null) : null;
+      sb.from('risultati').upsert({
+        sessione_id: s.sessioneId, atleta_id: currentUser.id,
+        rep_idx: s.repIdx, kg_rep: kgRep, tut_eseguito: secondiFatti,
+        completato: false
+      }, { onConflict: 'sessione_id,atleta_id,rep_idx' }).then(() => {});
+    }
+    const repEl = document.getElementById('iso-rep-' + s.sessioneId + '-' + s.repIdx);
+    if (repEl) {
+      const statusEl = repEl.querySelector('#iso-rep-status-' + s.sessioneId + '-' + s.repIdx);
+      if (statusEl) { statusEl.textContent = '⏱ ' + secondiFatti + 's'; statusEl.style.color = '#f97316'; }
+      const goBtn = repEl.querySelector('#iso-go-' + s.sessioneId + '-' + s.repIdx);
+      if (goBtn) { goBtn.style.opacity = '0.3'; goBtn.disabled = true; }
+    }
+    chiudiTimerIso();
+    // Abilita il prossimo GO! se ci sono altre rep
+    const nextRep = s.repIdx + 1;
+    if (nextRep < s.nReps) {
+      s.repIdx = nextRep;
+      const nextGoBtn = document.getElementById('iso-go-' + s.sessioneId + '-' + nextRep);
+      if (nextGoBtn) { nextGoBtn.style.opacity = '1'; nextGoBtn.style.pointerEvents = 'auto'; nextGoBtn.disabled = false; }
+      showToast('⏱ ' + secondiFatti + 's registrati. Puoi modificare il TUT delle prossime rep.', 'success');
+    } else {
+      // Era l'ultima rep
+      completaSerieIso();
+    }
+  };
+
+}
+
+function chiudiTimerIso() {
+  const overlay = document.getElementById('iso-timer-overlay');
+  if (overlay) overlay.remove();
+}
+
+async function completaSerieIso(saltaRecupero) {
+  const s = isoTimerState;
+  if (!s) return;
+
+  // Salva risultato su Supabase
+  const { data: existing } = await sb.from('risultati').select('id').eq('sessione_id', s.sessioneId).eq('atleta_id', currentUser.id).maybeSingle();
+  const repsEseg = s.repsCompletate;
+  // TUT effettivo: media dei TUT per rep (usando i secondi reali se interrotta)
+  const tutEseg = (() => {
+    if (!s.tutEsegPerRep || Object.keys(s.tutEsegPerRep).length === 0) return s.tutSec;
+    let tot = 0; let count = 0;
+    for (let i = 0; i < s.nReps; i++) {
+      if (s.tutEsegPerRep[i] !== undefined) { tot += s.tutEsegPerRep[i]; count++; }
+      else if (i < s.repIdx || s.repsCompletate > count) { tot += s.tutSec; count++; }
+    }
+    return count > 0 ? Math.round(tot / count) : s.tutSec;
+  })();
+  const payload = {
+    sessione_id: s.sessioneId, atleta_id: currentUser.id,
+    rip_eseguito: repsEseg, tut_eseguito: tutEseg,
+    angolo_eseguito: null, kg_eseguito: s.isHolding ? s.kgHolding : null,
+    completato: true
+  };
+  let saveError = null;
+  if (existing) {
+    const { error } = await sb.from('risultati').update(payload).eq('id', existing.id);
+    saveError = error;
+  } else {
+    const { error } = await sb.from('risultati').insert(payload);
+    saveError = error;
+  }
+  if (saveError) {
+    showToast('Errore salvataggio: ' + saveError.message, 'error');
+    console.error('Errore salvataggio iso:', saveError);
+    return;
+  }
+
+  // Marca la card come done senza re-render (preserva lo stato visivo delle rep)
+  const card = document.getElementById('card-' + s.sessioneId);
+  if (card) {
+    card.classList.add('done');
+    // Rimuovi tutti i pulsanti GO! e input TUT rimasti attivi
+    card.querySelectorAll('[id^="iso-go-"]').forEach(b => { b.disabled = true; b.style.opacity = '0.3'; b.style.pointerEvents = 'none'; });
+    card.querySelectorAll('[id^="tut-rep-"]').forEach(i => { i.disabled = true; i.style.opacity = '0.4'; });
+    card.querySelectorAll('[id^="kg-rep-"]').forEach(i => { i.disabled = true; i.style.opacity = '0.4'; });
+  }
+
+  const nomeEsercizioAperto = s.nomeEsercizio;
+  isoTimerState = null;
+
+  // Aggiorna solo il bottone salva senza re-render della lista
+  aggiornaBottoneSalva();
+  showToast('✅ Serie completata!', 'success');
+
+  // Scorri fino alla card senza ri-renderizzare
+  setTimeout(() => {
+    const cardEl = document.getElementById('card-' + (s.sessioneId));
+    if (cardEl) {
+      cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, 100);
+}
+
+function suonaFischio() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.5, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.4);
+  } catch(e) {}
+}
+
+function suonaApplauso() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    // Simula applauso con burst di rumore
+    for (let i = 0; i < 5; i++) {
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let j = 0; j < data.length; j++) data[j] = (Math.random() * 2 - 1) * (1 - j/data.length);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const gain = ctx.createGain();
+      gain.gain.value = 0.3;
+      src.connect(gain); gain.connect(ctx.destination);
+      src.start(ctx.currentTime + i * 0.12);
+    }
+    // Fischio di fine
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = 1200;
+    gain.gain.setValueAtTime(0.4, ctx.currentTime + 0.6);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.0);
+    osc.start(ctx.currentTime + 0.6);
+    osc.stop(ctx.currentTime + 1.0);
+  } catch(e) {}
+}
+
+async function toggleSerie(sessioneId, btn) {
+  const isIso = btn.dataset.iso === '1';
+  const kgEl = document.getElementById('kg-' + sessioneId);
+  const ripEl = document.getElementById('rip-' + sessioneId);
+  const angoloEl = document.getElementById('angolo-' + sessioneId);
+  const tutEl = document.getElementById('tut-' + sessioneId);
+
+  const kg = (!isIso && kgEl) ? (kgEl.value !== '' ? parseFloat(kgEl.value) : null) : null;
+  const rip = ripEl ? (ripEl.value !== '' ? parseInt(ripEl.value) : null) : null;
+  const angolo = (isIso && angoloEl) ? (angoloEl.value !== '' ? parseInt(angoloEl.value) : null) : null;
+  const tut = (isIso && tutEl) ? (tutEl.value !== '' ? parseInt(tutEl.value) : null) : null;
+  const wasDone = btn.classList.contains('done');
+
+  if (!wasDone) {
+    if (isIso) {
+      if (angolo === null || rip === null || tut === null) {
+        showToast('Compila angolo, REPS e TUT. Metti 0 se hai saltato la serie.', 'error');
+        return;
+      }
+    } else {
+      if (kg === null || rip === null) {
+        showToast('Compila entrambi i campi. Se hai saltato la serie metti 0/0.', 'error');
+        return;
+      }
+      if (kg > 0 && rip === 0) {
+        showToast('Hai inserito kg ma 0 reps. Se hai saltato la serie metti 0/0.', 'error');
+        return;
+      }
+    }
+  }
+
+  const { data: existing } = await sb.from('risultati').select('id').eq('sessione_id', sessioneId).eq('atleta_id', currentUser.id).maybeSingle();
+
+  if (existing) {
+    await sb.from('risultati').update({
+      kg_eseguito: kg, rip_eseguito: rip,
+      angolo_eseguito: angolo, tut_eseguito: tut,
+      completato: !wasDone
+    }).eq('id', existing.id);
+  } else {
+    await sb.from('risultati').insert({
+      sessione_id: sessioneId, atleta_id: currentUser.id,
+      kg_eseguito: kg, rip_eseguito: rip,
+      angolo_eseguito: angolo, tut_eseguito: tut,
+      completato: true
+    });
+  }
+
+  const nowDone = !wasDone;
+  btn.classList.toggle('done', nowDone);
+  if (kgEl) { kgEl.classList.toggle('done', nowDone); kgEl.disabled = nowDone; }
+  if (angoloEl) { angoloEl.classList.toggle('done', nowDone); angoloEl.disabled = nowDone; }
+  if (tutEl) { tutEl.classList.toggle('done', nowDone); tutEl.disabled = nowDone; }
+  if (ripEl) { ripEl.classList.toggle('done', nowDone); ripEl.disabled = nowDone; }
+  const card = document.getElementById('card-' + sessioneId);
+  if (card) card.classList.toggle('done', nowDone);
+
+  // aggiorna bottone salva della giornata
+  aggiornaBottoneSalva();
+  showToast(nowDone ? '✓ Serie completata!' : 'Serie rimossa', nowDone ? 'success' : '');
+
+  if (nowDone) {
+    const recuperoSerie = btn.dataset.recuperoSerie ? parseInt(btn.dataset.recuperoSerie) : 0;
+    const nomeEsercizio = btn.dataset.esercizio || '';
+    const serieIdx = parseInt(btn.dataset.serieIdx || 0);
+    const serieTotal = parseInt(btn.dataset.serieTotal || 0);
+    const isUltimaSerie = serieIdx === serieTotal;
+    // Recupero solo tra serie dello stesso esercizio, non tra esercizi diversi
+    if (!isUltimaSerie && recuperoSerie > 0) {
+      avviaRecupero(recuperoSerie, 'serie', nomeEsercizio, serieIdx, serieTotal);
+    }
+  }
+}
+
+function aggiornaBottoneSalva() {
+  // trova tutti i bottoni salva e aggiorna lo stato
+  document.querySelectorAll('.salva-sessione-btn').forEach(btnSalva => {
+    // se già salvata, non toccare
+    if (btnSalva.textContent.includes('salvata')) return;
+    const dayEl = btnSalva.closest('.workout-day');
+    if (!dayEl) return;
+    const cards = dayEl.querySelectorAll('.serie-card');
+    const completate = [...cards].filter(c => c.classList.contains('done')).length;
+    const tutte = cards.length > 0 && completate === cards.length;
+    btnSalva.classList.toggle('ready', tutte);
+    btnSalva.disabled = !tutte;
+    if (tutte) {
+      btnSalva.style.opacity = '';
+      btnSalva.style.cursor = '';
+    } else {
+      btnSalva.style.opacity = '0.5';
+      btnSalva.style.cursor = 'default';
+    }
+    btnSalva.textContent = tutte ? '✅ Sessione completata — Salva (non potrai più modificare)' : `Completa tutte le serie per salvare (${completate}/${cards.length})`;
+  });
+}
+
+async function salvaSessione(key, totale) {
+  const btnId = 'salva-' + key.replace(/\|/g, '-');
+  const btn = document.getElementById(btnId);
+  if (!btn?.classList.contains('ready')) {
+    showToast('Completa tutte le serie prima di salvare', 'error');
+    return;
+  }
+  // salva stato nel localStorage
+  const savedKey = 'sessione_salvata_' + currentUser.id + '_' + key;
+  localStorage.setItem(savedKey, '1');
+  btn.textContent = '✅ Sessione salvata!';
+  btn.disabled = true;
+  btn.classList.remove('ready');
+  btn.style.opacity = '0.5';
+  btn.style.cursor = 'default';
+
+  // Blocca tutte le spunte e i pulsanti GO della giornata (non più modificabili)
+  const dayEl = btn.closest('.workout-day');
+  if (dayEl) {
+    dayEl.querySelectorAll('.check-btn').forEach(b => { b.disabled = true; b.style.pointerEvents = 'none'; b.style.opacity = b.classList.contains('done') ? '1' : '0.4'; });
+    dayEl.querySelectorAll('input').forEach(i => { i.disabled = true; });
+    dayEl.querySelectorAll('[id^="iso-go-"]').forEach(b => { b.disabled = true; b.style.pointerEvents = 'none'; b.style.opacity = '0.3'; });
+  }
+
+  showToast('Sessione salvata! 💪', 'success');
+}
+
+// ═══════════════════════════════════════
+// ATLETI (COACH)
+// ═══════════════════════════════════════
+async function renderAtleti() {
+  const { data: profiles } = await sb.from('profiles').select('*').eq('ruolo', 'atleta');
+
+  document.getElementById('main-content').innerHTML = `
+    <div class="section-header">
+      <div class="section-title">ATLETI</div>
+    </div>
+    <div class="card">
+      ${(profiles||[]).length === 0 ?
+        '<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">Nessun atleta registrato</div><div class="empty-sub">Gli atleti devono registrarsi tramite l\'app</div></div>' :
+        (profiles||[]).map(p => `
+          <div class="atleta-row">
+            <div class="atleta-info">
+              <div class="atleta-name">${`${p.nome||''} ${p.cognome||''}`.trim() || '—'}</div>
+              <div class="atleta-email">${p.email}</div>
+              <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">
+                ${p.gruppo ? `<span class="tag" style="background:rgba(254,109,13,0.15);color:var(--accent)">${p.gruppo}</span>` : ''}
+                <span class="tag ${p.gdpr_consent ? 'tag-green' : 'tag-orange'}">${p.gdpr_consent ? 'GDPR accettato' : 'GDPR in attesa'}</span>
+                <span class="tag tag-gray">Atleta dal ${new Date(p.created_at).toLocaleDateString('it-IT')}</span>
+              </div>
+            </div>
+            <div class="atleta-actions">
+              <button class="btn btn-secondary btn-sm" onclick="viewAtleta('${p.email}')">Vedi sessioni</button>
+              <button class="btn btn-danger btn-sm" onclick="confirmDeleteAtleta('${p.id}', '${`${p.nome||''} ${p.cognome||''}`.trim() || p.email}')">Elimina</button>
+            </div>
+          </div>
+        `).join('')
+      }
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div class="card-title">AGGIUNGI COACH</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Per aggiungere un secondo coach, modifica la costante COACH_EMAILS nel file HTML aggiungendo la sua email.</p>
+      <code style="font-family:var(--font-mono);font-size:12px;color:var(--accent);background:var(--bg3);padding:8px 12px;border-radius:6px;display:block">
+        const COACH_EMAILS = ['info@virtusfisio.it', 'secondo.coach@email.com'];
+      </code>
+    </div>
+  `;
+}
+
+function viewAtleta(email) {
+  activeAtleta = email;
+  document.getElementById('f-atleta') && (document.getElementById('f-atleta').value = email);
+  loadTab('sessioni');
+  setTimeout(() => {
+    const sel = document.getElementById('f-atleta');
+    if (sel) { sel.value = email; filterSessioni(); }
+  }, 500);
+}
+
+function confirmDeleteAtleta(id, nome) {
+  openModal(`
+    <div class="modal-title">ELIMINA ATLETA</div>
+    <p style="color:var(--text2);margin-bottom:16px">Stai per eliminare <strong>${nome}</strong> e tutti i suoi dati (sessioni, risultati). Questa azione è irreversibile.</p>
+    <div class="alert alert-error">⚠️ Tutti i dati verranno cancellati permanentemente</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Annulla</button>
+      <button class="btn btn-danger" onclick="deleteAtleta('${id}')">Sì, elimina</button>
+    </div>
+  `);
+}
+
+async function deleteAtleta(id) {
+  await sb.from('profiles').delete().eq('id', id);
+  closeModal();
+  showToast('Atleta eliminato', 'success');
+  renderAtleti();
+}
+
+// ═══════════════════════════════════════
+// ═══════════════════════════════════════
+// GENERA SESSIONI DA TEMPLATE
+// ═══════════════════════════════════════
+async function renderGenera() {
+  const el = document.getElementById('main-content');
+  el.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text3)">Caricamento template...</div>`;
+
+  const { data: tpl } = await sb.from('sessioni').select('*').eq('is_template', true).order('ordine');
+  if (!tpl || tpl.length === 0) {
+    el.innerHTML = `
+      <div class="section-header"><div class="section-title">GENERA SESSIONI</div></div>
+      <div class="card" style="text-align:center;padding:48px 24px">
+        <div style="font-size:48px;margin-bottom:16px">📭</div>
+        <div style="font-size:16px;color:var(--text2);margin-bottom:8px">Nessun template caricato</div>
+        <div style="font-size:13px;color:var(--text3);margin-bottom:24px">Carica un Excel con la colonna Data vuota per creare i template</div>
+        <button class="btn" onclick="loadTab('carica')">📋 Vai a Gestione Template</button>
+      </div>`;
+    return;
+  }
+
+  const { data: profiles } = await sb.from('profiles').select('email, gruppo, nome, cognome').eq('ruolo', 'atleta');
+  const profileMap = {};
+  (profiles||[]).forEach(p => { profileMap[p.email] = p; });
+  const nomeAtleta = (email) => {
+    const p = profileMap[email];
+    if (p && (p.nome || p.cognome)) return `${p.nome||''} ${p.cognome||''}`.trim();
+    return email;
+  };
+
+  const grouped = {};
+  tpl.forEach(s => {
+    if (!grouped[s.atleta_email]) grouped[s.atleta_email] = {};
+    if (!grouped[s.atleta_email][s.blocco]) grouped[s.atleta_email][s.blocco] = [];
+    if (!grouped[s.atleta_email][s.blocco].includes(s.esercizio))
+      grouped[s.atleta_email][s.blocco].push(s.esercizio);
+  });
+
+  // Squadre disponibili tra gli atleti con template
+  const squadreSet = new Set();
+  Object.keys(grouped).forEach(e => squadreSet.add(profileMap[e]?.gruppo || 'Senza squadra'));
+  const squadre = [...squadreSet].sort();
+
+  const nomiGiorni = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
+
+  el.innerHTML = `
+    <div class="section-header"><div class="section-title">GENERA SESSIONI</div></div>
+
+    <div class="card">
+      <div class="card-title">TEMPLATE DISPONIBILI</div>
+      ${Object.entries(grouped).map(([atleta, blocchi]) => `
+        <div style="margin-bottom:10px;padding:12px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
+          <div style="font-size:13px;color:var(--accent);font-weight:600;margin-bottom:2px">${nomeAtleta(atleta)}</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);margin-bottom:6px">${profileMap[atleta]?.gruppo || ''}</div>
+          ${Object.entries(blocchi).map(([blocco, esercizi]) => `
+            <div style="font-size:12px;margin-bottom:2px">
+              <span style="color:var(--text)">${blocco || 'Nessun blocco'}</span>
+              <span style="color:var(--text3)"> — ${esercizi.join(', ')}</span>
+            </div>`).join('')}
+        </div>`).join('')}
+    </div>
+
+    <div class="card">
+      <div class="card-title">CONFIGURA GENERAZIONE</div>
+      <div id="genera-alert"></div>
+      <div style="display:grid;gap:16px">
+
+        <div>
+          <label style="font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Squadra</label>
+          <select id="gen-squadra" onchange="aggiornaAtletiGenera()" style="width:100%">
+            <option value="">— tutte le squadre —</option>
+            ${squadre.map(sq => `<option value="${sq}">${sq}</option>`).join('')}
+          </select>
+        </div>
+
+        <div>
+          <label style="font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Atleta</label>
+          <select id="gen-atleta" onchange="aggiornaBlocchiGenera()" style="width:100%">
+            <option value="">— seleziona atleta —</option>
+          </select>
+        </div>
+
+        <div id="gen-blocco-wrap" style="display:none">
+          <label style="font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Blocco</label>
+          <select id="gen-blocco" style="width:100%"></select>
+        </div>
+
+        <div>
+          <label style="font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px">Giorni della settimana</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${nomiGiorni.map((g,i) => `
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;font-size:13px">
+                <input type="checkbox" id="gen-day-${i}" value="${i+1}" style="accent-color:var(--accent)"> ${g}
+              </label>`).join('')}
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <label style="font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Data inizio</label>
+            <input type="date" id="gen-da" style="width:100%">
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Data fine</label>
+            <input type="date" id="gen-a" style="width:100%">
+          </div>
+        </div>
+
+        <div id="gen-preview" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px">
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Anteprima</div>
+          <div id="gen-preview-text" style="font-size:13px;color:var(--text2)"></div>
+        </div>
+
+        <button class="btn" style="background:var(--bg2);border:1px solid var(--border);color:var(--text)" onclick="calcolaAnteprima()">👁 Anteprima</button>
+        <button class="btn" id="btn-genera" style="display:none" onclick="eseguiGenera()">🚀 Genera sessioni</button>
+
+        <div id="genera-progress" style="display:none">
+          <div class="alert alert-info" id="genera-status">Generazione in corso...</div>
+          <div class="progress-bar-wrap" style="margin-top:8px"><div class="progress-bar" id="genera-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>`;
+
+  const oggi = new Date();
+  const tra2mesi = new Date(oggi); tra2mesi.setMonth(tra2mesi.getMonth() + 2);
+  document.getElementById('gen-da').value = oggi.toISOString().split('T')[0];
+  document.getElementById('gen-a').value = tra2mesi.toISOString().split('T')[0];
+  window._generaGrouped = grouped;
+  window._generaProfileMap = profileMap;
+  aggiornaAtletiGenera();
+}
+
+function aggiornaAtletiGenera() {
+  const grouped = window._generaGrouped || {};
+  const profileMap = window._generaProfileMap || {};
+  const squadra = document.getElementById('gen-squadra').value;
+  const selA = document.getElementById('gen-atleta');
+  const nomeAtleta = (email) => {
+    const p = profileMap[email];
+    if (p && (p.nome || p.cognome)) return `${p.nome||''} ${p.cognome||''}`.trim();
+    return email;
+  };
+  const atleti = Object.keys(grouped)
+    .filter(e => !squadra || (profileMap[e]?.gruppo || 'Senza squadra') === squadra)
+    .sort((a,b) => nomeAtleta(a).localeCompare(nomeAtleta(b)));
+  selA.innerHTML = '<option value="">— seleziona atleta —</option>' +
+    atleti.map(e => `<option value="${e}">${nomeAtleta(e)}</option>`).join('');
+  // Reset blocco
+  document.getElementById('gen-blocco-wrap').style.display = 'none';
+}
+
+function aggiornaBlocchiGenera() {
+  const atleta = document.getElementById('gen-atleta').value;
+  const wrap = document.getElementById('gen-blocco-wrap');
+  const sel = document.getElementById('gen-blocco');
+  if (!atleta || !window._generaGrouped?.[atleta]) { wrap.style.display = 'none'; return; }
+  const blocchi = Object.keys(window._generaGrouped[atleta]);
+  sel.innerHTML = blocchi.map(b => `<option value="${b}">${b || 'Nessun blocco'}</option>`).join('');
+  wrap.style.display = 'block';
+  sel.value = blocchi[0];
+}
+
+function getGiorniSelezionati() {
+  return [1,2,3,4,5,6,7].filter(i => document.getElementById('gen-day-'+(i-1))?.checked);
+}
+
+function calcolaDateGenerate() {
+  const da = new Date(document.getElementById('gen-da').value);
+  const a = new Date(document.getElementById('gen-a').value);
+  const giorni = getGiorniSelezionati();
+  if (!da || !a || isNaN(da) || isNaN(a) || giorni.length === 0 || da > a) return [];
+  const dates = [];
+  const cur = new Date(da);
+  while (cur <= a) {
+    const dow = cur.getDay() === 0 ? 7 : cur.getDay();
+    if (giorni.includes(dow)) dates.push(cur.toISOString().split('T')[0]);
+    cur.setDate(cur.getDate() + 1);
+  }
+  return dates;
+}
+
+function calcolaAnteprima() {
+  const atleta = document.getElementById('gen-atleta').value;
+  const blocco = document.getElementById('gen-blocco').value || Object.keys(window._generaGrouped?.[atleta] || {})[0];
+  const giorni = getGiorniSelezionati();
+  const dates = calcolaDateGenerate();
+  if (!atleta) { showAlert('genera-alert', 'Seleziona un atleta', 'error'); return; }
+  if (giorni.length === 0) { showAlert('genera-alert', 'Seleziona almeno un giorno', 'error'); return; }
+  if (dates.length === 0) { showAlert('genera-alert', 'Range di date non valido', 'error'); return; }
+  const esercizi = window._generaGrouped?.[atleta]?.[blocco] || [];
+  const nomiGiorni = ['','Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
+  document.getElementById('gen-preview-text').innerHTML = `
+    <div style="margin-bottom:6px">📅 <strong>${dates.length} sessioni</strong> dal ${dates[0]} al ${dates[dates.length-1]}</div>
+    <div style="margin-bottom:6px">👤 <strong>${atleta}</strong> — ${blocco}</div>
+    <div style="margin-bottom:6px">📆 Giorni: <strong>${giorni.map(g => nomiGiorni[g]).join(', ')}</strong></div>
+    <div style="margin-bottom:6px">💪 Esercizi: <strong>${esercizi.join(', ')}</strong></div>
+    <div style="color:var(--text3);font-size:12px">Prime date: ${dates.slice(0,5).join(', ')}${dates.length > 5 ? '…' : ''}</div>`;
+  document.getElementById('gen-preview').style.display = 'block';
+  document.getElementById('btn-genera').style.display = 'block';
+  document.getElementById('genera-alert').innerHTML = '';
+}
+
+async function eseguiGenera() {
+  const atleta = document.getElementById('gen-atleta').value;
+  const blocco = document.getElementById('gen-blocco').value || Object.keys(window._generaGrouped?.[atleta] || {})[0];
+  const dates = calcolaDateGenerate();
+  if (!atleta || dates.length === 0) return;
+
+  document.getElementById('btn-genera').style.display = 'none';
+  document.getElementById('genera-progress').style.display = 'block';
+  document.getElementById('genera-status').textContent = 'Caricamento template...';
+  document.getElementById('genera-bar').style.width = '10%';
+
+  const { data: tpl } = await sb.from('sessioni').select('*')
+    .eq('is_template', true).eq('atleta_email', atleta).eq('blocco', blocco).order('ordine');
+  if (!tpl || tpl.length === 0) { showAlert('genera-alert', 'Template non trovato', 'error'); return; }
+
+  const { data: existingFull } = await sb.from('sessioni').select('id, atleta_email, data').eq('is_template', false).eq('atleta_email', atleta);
+  const { data: risultatiEsistenti } = await sb.from('risultati').select('sessione_id').eq('completato', true);
+  const sessioniConRisultati = new Set((risultatiEsistenti||[]).map(r => r.sessione_id));
+  const dateProtette = new Set((existingFull||[]).filter(s => sessioniConRisultati.has(s.id)).map(s => s.data));
+  const dateEsistenti = new Set((existingFull||[]).map(s => s.data));
+
+  document.getElementById('genera-status').textContent = `Generazione ${dates.length} sessioni...`;
+  document.getElementById('genera-bar').style.width = '30%';
+
+  const nuoviRecord = [];
+  let ordineBase = 0;
+  for (const data of dates) {
+    if (dateProtette.has(data)) continue;
+    if (dateEsistenti.has(data)) {
+      const ids = (existingFull||[]).filter(s => s.data === data && s.blocco === blocco && !sessioniConRisultati.has(s.id)).map(s => s.id);
+      if (ids.length > 0) await sb.from('sessioni').delete().in('id', ids);
+    }
+    tpl.forEach(t => {
+      const { id, created_at, is_template, ...rest } = t;
+      nuoviRecord.push({ ...rest, data, is_template: false, ordine: ordineBase++ });
+    });
+  }
+
+  document.getElementById('genera-status').textContent = `Inserimento ${nuoviRecord.length} serie...`;
+  document.getElementById('genera-bar').style.width = '60%';
+
+  const CHUNK = 100;
+  for (let i = 0; i < nuoviRecord.length; i += CHUNK) {
+    const { error } = await sb.from('sessioni').insert(nuoviRecord.slice(i, i + CHUNK));
+    if (error) { showAlert('genera-alert', 'Errore: ' + error.message, 'error'); return; }
+    document.getElementById('genera-bar').style.width = (60 + Math.round(i / nuoviRecord.length * 35)) + '%';
+  }
+
+  document.getElementById('genera-bar').style.width = '100%';
+  document.getElementById('genera-bar').style.background = 'var(--success)';
+  document.getElementById('genera-status').textContent = `✅ Generate ${dates.length} sessioni (${nuoviRecord.length} serie totali)`;
+  showToast(`✅ ${dates.length} sessioni generate!`, 'success');
+}
+
+// ═══════════════════════════════════════
+// GESTIONE TEMPLATE (COACH)
+// ═══════════════════════════════════════
+async function renderCarica() {
+  document.getElementById('main-content').innerHTML = `
+    <div class="section-header">
+      <div class="section-title">GESTIONE TEMPLATE</div>
+    </div>
+    <div class="card">
+      <div class="card-title">COS'È UN TEMPLATE</div>
+      <p style="font-size:14px;color:var(--text2);margin-bottom:12px">
+        Un template è una scheda di allenamento <strong>senza date</strong>. Caricalo una volta, poi usa 
+        <button onclick="loadTab('genera')" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:14px;padding:0;text-decoration:underline">📅 Genera sessioni</button> 
+        per creare automaticamente tutte le date che vuoi.
+      </p>
+      <div style="font-size:13px;color:var(--text3)">
+        💡 Lascia la colonna <strong style="color:var(--accent)">Data vuota</strong> nel file Excel — l'app la riconosce come template<br>
+        💡 Puoi avere più blocchi per atleta (es. Blocco Forza il Lunedì, Blocco Potenza il Mercoledì)<br>
+        💡 Ricaricare un template lo sovrascrive senza toccare le sessioni già generate
+      </div>
+    </div>
+
+    <div class="card" id="template-list-card">
+      <div class="card-title">TEMPLATE CARICATI</div>
+      <div id="template-list-content"><div style="color:var(--text3);font-size:14px">Caricamento...</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">FORMATO FILE</div>
+      <div style="overflow-x:auto;margin-bottom:16px">
+        <table>
+          <tr>
+            <th style="color:var(--accent)">Squadra</th><th>Atleta</th><th>Nome</th><th>Cognome</th><th>Blocco</th><th style="color:var(--accent)">Data</th><th>Esercizio</th><th>Serie_n</th><th>Kg</th><th>Reps</th><th>Nota</th><th style="color:var(--text3)">Rec_serie</th><th style="color:var(--text3)">Rec_reps</th><th style="color:#142ecb">Angolo</th><th style="color:#142ecb">TUT</th>
+          </tr>
+          <tr>
+            <td style="color:var(--accent);font-size:12px">Volley Mogliano</td>
+            <td style="color:var(--text2);font-size:12px">mario@email.com</td>
+            <td style="color:var(--text2);font-size:12px">Mario</td>
+            <td style="color:var(--text2);font-size:12px">Rossi</td>
+            <td style="color:var(--text2);font-size:12px">Blocco 1 - Forza</td>
+            <td style="color:var(--accent);font-size:12px;font-style:italic">⬅ vuota</td>
+            <td style="color:var(--text2);font-size:12px">Squat</td>
+            <td style="color:var(--text2);font-size:12px">3</td>
+            <td style="color:var(--text2);font-size:12px">80</td>
+            <td style="color:var(--text2);font-size:12px">8</td>
+            <td style="color:var(--text2);font-size:12px"></td>
+            <td style="color:var(--text3);font-size:12px">90</td>
+            <td style="color:var(--text3);font-size:12px">—</td>
+            <td style="color:var(--text3);font-size:12px">—</td>
+            <td style="color:var(--text3);font-size:12px">—</td>
+          </tr>
+          <tr>
+            <td style="color:var(--accent);font-size:12px">Volley Mogliano</td>
+            <td style="color:var(--text2);font-size:12px">mario@email.com</td>
+            <td style="color:var(--text2);font-size:12px">Mario</td>
+            <td style="color:var(--text2);font-size:12px">Rossi</td>
+            <td style="color:#142ecb;font-size:12px">Blocco 2 - Isometria</td>
+            <td style="color:var(--accent);font-size:12px;font-style:italic">⬅ vuota</td>
+            <td style="color:var(--text2);font-size:12px">Wall sit</td>
+            <td style="color:var(--text2);font-size:12px">1</td>
+            <td style="color:var(--text3);font-size:12px">—</td>
+            <td style="color:var(--text2);font-size:12px">4</td>
+            <td style="color:var(--text2);font-size:12px"></td>
+            <td style="color:var(--text3);font-size:12px">60</td>
+            <td style="color:var(--text3);font-size:12px">20</td>
+            <td style="color:#142ecb;font-size:12px">90</td>
+            <td style="color:#142ecb;font-size:12px">40</td>
+          </tr>
+        </table>
+      </div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:16px">
+        💡 La colonna <strong style="color:var(--accent)">Squadra</strong> identifica il gruppo (es. "Volley Mogliano") — usata per filtrare l'export<br>
+        💡 <strong>Nome</strong> e <strong>Cognome</strong> dell'atleta — l'email resta il riferimento univoco<br>
+        💡 Lascia la colonna <strong style="color:var(--accent)">Data vuota</strong> — l'app la riconosce come template<br>
+        💡 Se il blocco contiene la parola <strong style="color:#142ecb">Isometria</strong> → l'app attiva Angolo + TUT al posto dei Kg<br>
+        💡 <strong>Rec_serie</strong> = recupero tra le serie · <strong>Rec_reps</strong> = recupero tra le rep (solo isometrie)<br>
+        💡 Puoi avere più blocchi per atleta (Forza il Lunedì, Isometria il Mercoledì...)<br>
+        💡 Ricaricare un template lo sovrascrive senza toccare le sessioni già generate
+      </div>
+    <div class="card">
+      <div class="card-title">CARICA TEMPLATE</div>
+      <div id="upload-alert"></div>
+      <div class="upload-area" id="upload-area" onclick="document.getElementById('file-input').click()"
+        ondragover="event.preventDefault();this.classList.add('drag')"
+        ondragleave="this.classList.remove('drag')"
+        ondrop="handleDrop(event)">
+        <div class="upload-icon">📋</div>
+        <div class="upload-text">Clicca o trascina il file Excel template</div>
+        <div class="upload-sub">.xlsx o .xls — colonna Data vuota</div>
+      </div>
+      <input type="file" id="file-input" accept=".xlsx,.xls" style="display:none" onchange="handleFile(this.files[0])">
+      <div id="upload-progress" style="display:none;margin-top:16px">
+        <div class="alert alert-info" id="upload-status">Elaborazione in corso...</div>
+        <div class="progress-bar-wrap" style="margin-top:8px"><div class="progress-bar" id="upload-bar" style="width:0%"></div></div>
+      </div>
+    </div>
+  `;
+
+  await renderTemplateList();
+}
+
+async function renderTemplateList() {
+  const { data: tpl } = await sb.from('sessioni').select('atleta_email, blocco, esercizio, serie_n').eq('is_template', true).order('atleta_email').order('blocco').order('ordine');
+  const { data: profiles } = await sb.from('profiles').select('email, gruppo, nome, cognome').eq('ruolo', 'atleta');
+  const profileMap = {};
+  (profiles||[]).forEach(p => { profileMap[p.email] = p; });
+
+  const container = document.getElementById('template-list-content');
+  if (!container) return;
+
+  if (!tpl || tpl.length === 0) {
+    container.innerHTML = '<div style="color:var(--text3);font-size:14px;padding:8px 0">Nessun template caricato</div>';
+    return;
+  }
+
+  // Raggruppa per squadra
+  const bySquadra = {};
+  tpl.forEach(s => {
+    const p = profileMap[s.atleta_email];
+    const squadra = p?.gruppo || '—';
+    if (!bySquadra[squadra]) bySquadra[squadra] = { atleti: new Set(), blocchi: new Set() };
+    bySquadra[squadra].atleti.add(s.atleta_email);
+    bySquadra[squadra].blocchi.add(s.blocco);
+  });
+
+  container.innerHTML = Object.entries(bySquadra).sort(([a],[b]) => a.localeCompare(b)).map(([squadra, info]) => `
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:8px">
+      <span style="font-size:13px;font-weight:700;color:var(--accent);font-family:var(--font-mono);background:rgba(254,109,13,0.1);padding:4px 10px;border-radius:20px;white-space:nowrap">${squadra}</span>
+      <span style="font-size:13px;color:var(--text2)">${info.atleti.size} atleti · ${info.blocchi.size} blocchi</span>
+    </div>`).join('');
+}
+
+function confirmDeleteTemplate(email, blocco) {
+  openModal(`
+    <div class="modal-title">ELIMINA TEMPLATE</div>
+    <p style="color:var(--text2);margin-bottom:16px">Stai per eliminare il template <strong>${blocco}</strong> di <strong>${email}</strong>.</p>
+    <div class="alert alert-error">⚠️ Le sessioni già generate non verranno cancellate</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Annulla</button>
+      <button class="btn btn-danger" onclick="deleteTemplate('${email}', '${blocco.replace(/'/g,"\\'")}')">Elimina template</button>
+    </div>
+  `);
+}
+
+async function deleteTemplate(email, blocco) {
+  await sb.from('sessioni').delete().eq('atleta_email', email).eq('blocco', blocco).eq('is_template', true);
+  closeModal();
+  showToast('Template eliminato', 'success');
+  await renderTemplateList();
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-area').classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+}
+
+async function handleFile(file) {
+  if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['xlsx', 'xls'].includes(ext)) {
+    document.getElementById('upload-alert').innerHTML = '<div class="alert alert-error">Formato non supportato. Usa .xlsx o .xls</div>';
+    return;
+  }
+
+  document.getElementById('upload-progress').style.display = 'block';
+  setUploadStatus('Lettura file...', 10);
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      // Legge solo lo sheet "Template" — ignora Piano, Risultati, Progressione
+      const templateSheetName = wb.SheetNames.find(n => n.trim().toLowerCase() === 'template') || wb.SheetNames[0];
+      const ws = wb.Sheets[templateSheetName];
+      if (!ws) throw new Error('Sheet "Template" non trovato nel file');
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
+
+      setUploadStatus('Elaborazione righe...', 30);
+
+      const records = [];
+      const profiliAtleti = {}; // email -> {squadra, nome, cognome}
+      let ordineGlobale = 0;
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || row.length < 4) continue;
+        const [squadra, atleta, nome, cognome, blocco, dataRaw, esercizio, serieRaw, kgRaw, ripRaw, nota, recuperoSerieRaw, recuperoRepsRaw, angoloRaw, tutRaw] = row;
+        if (!atleta || !esercizio) continue;
+
+        const atletaEmail = atleta.toString().trim().toLowerCase();
+        if (!profiliAtleti[atletaEmail]) profiliAtleti[atletaEmail] = {};
+        if (squadra) profiliAtleti[atletaEmail].gruppo = squadra.toString().trim();
+        if (nome) profiliAtleti[atletaEmail].nome = nome.toString().trim();
+        if (cognome) profiliAtleti[atletaEmail].cognome = cognome.toString().trim();
+
+        let dataStr = null;
+        if (dataRaw) {
+          const d = parseDate(dataRaw.toString());
+          if (d) dataStr = d;
+        }
+
+        const recupero_serie = recuperoSerieRaw ? parseInt(recuperoSerieRaw) || null : null;
+        const recupero_reps = recuperoRepsRaw ? parseInt(recuperoRepsRaw) || null : null;
+        const angolo_piano = angoloRaw ? parseInt(angoloRaw) || null : null;
+        const tut_piano = tutRaw ? parseInt(tutRaw) || null : null;
+
+        const nSerie = parseInt(serieRaw) || 1;
+        const kgs = kgRaw ? kgRaw.toString().split(',').map(x => parseFloat(x.trim())).filter(x => !isNaN(x)) : [];
+        const rips = ripRaw ? ripRaw.toString().split(',').map(x => parseInt(x.trim())).filter(x => !isNaN(x)) : [];
+
+        for (let s = 0; s < nSerie; s++) {
+          records.push({
+            atleta_email: atletaEmail,
+            blocco: blocco?.toString().trim() || null,
+            data: dataStr,
+            is_template: !dataStr,
+            esercizio: esercizio.toString().trim(),
+            serie_n: s + 1,
+            ordine: ordineGlobale++,
+            kg_piano: kgs.length > 1 ? (kgs[s] ?? kgs[kgs.length - 1]) : (kgs[0] ?? null),
+            rip_piano: rips.length > 1 ? (rips[s] ?? rips[rips.length - 1]) : (rips[0] ?? null),
+            nota: nota?.toString().trim() || null,
+            recupero_serie: recupero_serie,
+            recupero_reps: recupero_reps,
+            angolo_piano: angolo_piano,
+            tut_piano: tut_piano
+          });
+        }
+      }
+
+      const templates = records.filter(r => r.is_template);
+      const sessioni = records.filter(r => !r.is_template);
+
+      setUploadStatus(`Trovate ${templates.length} serie template, ${sessioni.length} serie con data. Caricamento...`, 50);
+
+      // ── TEMPLATE: cancella vecchi e riscrivi ──
+      if (templates.length > 0) {
+        const chiavi = [...new Set(templates.map(r => r.atleta_email + '|' + (r.blocco||'')))];
+        for (const chiave of chiavi) {
+          const [email, blocco] = chiave.split('|');
+          let q = sb.from('sessioni').delete().eq('atleta_email', email).eq('is_template', true);
+          if (blocco) q = q.eq('blocco', blocco);
+          await q;
+        }
+        const CHUNK = 100;
+        for (let i = 0; i < templates.length; i += CHUNK) {
+          const { error } = await sb.from('sessioni').insert(templates.slice(i, i + CHUNK));
+          if (error) throw error;
+        }
+        setUploadStatus(`✅ ${templates.length} serie template salvate`, 100);
+        document.getElementById('upload-bar').style.background = 'var(--success)';
+
+        // Aggiorna squadra, nome, cognome su profiles
+        for (const [email, info] of Object.entries(profiliAtleti)) {
+          const upd = {};
+          if (info.gruppo !== undefined) upd.gruppo = info.gruppo;
+          if (info.nome !== undefined) upd.nome = info.nome;
+          if (info.cognome !== undefined) upd.cognome = info.cognome;
+          if (Object.keys(upd).length > 0) await sb.from('profiles').update(upd).eq('email', email);
+        }
+
+        showToast(`✅ Template caricato — vai su "Genera sessioni"`, 'success');
+        await renderTemplateList();
+        return;
+      }
+
+      // ── SESSIONI CON DATA (flusso legacy) ──
+      const { data: existing } = await sb.from('sessioni').select('id, atleta_email, data').eq('is_template', false);
+      const { data: risultatiEsistenti } = await sb.from('risultati').select('sessione_id, completato').eq('completato', true);
+      const sessioniConRisultati = new Set((risultatiEsistenti||[]).map(r => r.sessione_id));
+      const dateProtette = new Set();
+      (existing||[]).forEach(s => {
+        if (sessioniConRisultati.has(s.id)) dateProtette.add(s.atleta_email + '|' + s.data);
+      });
+      const recordsNuovi = [];
+      const dateToOverwrite = new Set();
+      sessioni.forEach(r => {
+        const key = r.atleta_email + '|' + r.data + '|' + (r.blocco || '');
+        if (dateProtette.has(r.atleta_email + '|' + r.data)) return;
+        recordsNuovi.push(r);
+        if ((existing||[]).some(e => e.atleta_email === r.atleta_email && e.data === r.data && e.blocco === r.blocco)) dateToOverwrite.add(key);
+      });
+      if (dateToOverwrite.size > 0) {
+        for (const key of dateToOverwrite) {
+          const parts = key.split('|');
+          const email = parts[0], data = parts[1], blocco = parts[2];
+          const ids = (existing||[]).filter(e => e.atleta_email === email && e.data === data && (e.blocco || '') === blocco && !sessioniConRisultati.has(e.id)).map(e => e.id);
+          if (ids.length > 0) await sb.from('sessioni').delete().in('id', ids);
+        }
+      }
+      if (recordsNuovi.length > 0) {
+        const CHUNK = 100;
+        for (let i = 0; i < recordsNuovi.length; i += CHUNK) {
+          const { error } = await sb.from('sessioni').insert(recordsNuovi.slice(i, i + CHUNK));
+          if (error) throw error;
+        }
+      }
+      const protette = sessioni.filter(r => dateProtette.has(r.atleta_email + '|' + r.data)).length;
+
+      // Aggiorna squadra, nome, cognome su profiles
+      for (const [email, info] of Object.entries(profiliAtleti)) {
+        const upd = {};
+        if (info.gruppo !== undefined) upd.gruppo = info.gruppo;
+        if (info.nome !== undefined) upd.nome = info.nome;
+        if (info.cognome !== undefined) upd.cognome = info.cognome;
+        if (Object.keys(upd).length > 0) await sb.from('profiles').update(upd).eq('email', email);
+      }
+
+      setUploadStatus(`✅ ${recordsNuovi.length} serie inserite · ${protette} protette`, 100);
+      document.getElementById('upload-bar').style.background = 'var(--success)';
+      showToast(`✅ ${recordsNuovi.length} serie aggiornate`, 'success');
+
+    } catch (err) {
+      setUploadStatus('❌ Errore: ' + err.message, 0);
+      document.getElementById('upload-alert').innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function setUploadStatus(msg, perc) {
+  document.getElementById('upload-status').textContent = msg;
+  document.getElementById('upload-bar').style.width = perc + '%';
+}
+
+function parseDate(str) {
+  if (!str) return null;
+  // gg/mm/aaaa
+  const m1 = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m1) return `${m1[3]}-${m1[2].padStart(2,'0')}-${m1[1].padStart(2,'0')}`;
+  // aaaa-mm-gg
+  const m2 = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m2) return str;
+  // Excel serial
+  const n = parseInt(str);
+  if (!isNaN(n) && n > 40000) {
+    const d = new Date((n - 25569) * 86400 * 1000);
+    return d.toISOString().split('T')[0];
+  }
+  return str;
+}
+
+// ═══════════════════════════════════════
+// PROGRESSIONE
+// ═══════════════════════════════════════
+async function renderProgressione() {
+  const isCoach = currentProfile.ruolo === 'coach';
+  let query = sb.from('sessioni').select('*').eq('is_template', false);
+  if (!isCoach) query = query.eq('atleta_email', currentProfile.email);
+  const { data: sessioni } = await query;
+  const { data: risultatiRaw } = await sb.from('risultati').select('*');
+  const risultati = (risultatiRaw||[]).filter(r => r.completato === true && r.rep_idx == null);
+  const risultatiPerRep = (risultatiRaw||[]).filter(r => r.rep_idx != null);
+
+  let profMapProg = {};
+  if (isCoach) {
+    const { data: profs } = await sb.from('profiles').select('email, gruppo, nome, cognome').eq('ruolo', 'atleta');
+    (profs||[]).forEach(p => { profMapProg[p.email] = p; });
+  }
+  window._progProfMap = profMapProg;
+  const nomeProg = (email) => {
+    const p = profMapProg[email];
+    if (p && (p.nome || p.cognome)) return `${p.nome||''} ${p.cognome||''}`.trim();
+    return email;
+  };
+
+  // Blocchi e date disponibili (solo sessioni con risultati)
+  const risIds = new Set(risultati.map(r => r.sessione_id));
+  const sessConRis = (sessioni||[]).filter(s => risIds.has(s.id));
+  const blocchi = [...new Set(sessConRis.map(s => s.blocco).filter(Boolean))].sort();
+  const date = [...new Set(sessConRis.map(s => s.data).filter(Boolean))].sort().reverse();
+  const atleti = isCoach ? [...new Set((sessioni||[]).map(s => s.atleta_email))] : [currentProfile.email];
+  const squadre = isCoach ? [...new Set(atleti.map(a => profMapProg[a]?.gruppo || 'Senza squadra'))].sort() : [];
+
+  const fmtData = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { day:'numeric', month:'short', year:'numeric' }) : d;
+
+  document.getElementById('main-content').innerHTML = `
+    <div class="section-header">
+      <div class="section-title">PROGRESSIONE</div>
+    </div>
+    <div class="filter-bar">
+      ${isCoach ? `<select id="p-squadra" onchange="filterSquadraProg()"><option value="">Tutte le squadre</option>${squadre.map(sq=>`<option value="${sq}">${sq}</option>`).join('')}</select>` : ''}
+      ${isCoach ? `<select id="p-atleta" onchange="renderProgChart()"><option value="">Tutti gli atleti</option>${atleti.slice().sort((a,b)=>nomeProg(a).localeCompare(nomeProg(b))).map(a=>`<option value="${a}">${nomeProg(a)}</option>`).join('')}</select>` : ''}
+      <select id="p-blocco" onchange="renderProgChart()">
+        <option value="">Tutti i blocchi</option>
+        ${blocchi.map(b => `<option value="${b}">${b}</option>`).join('')}
+      </select>
+      <select id="p-data" onchange="renderProgChart()">
+        <option value="">Tutte le date</option>
+        ${date.map(d => `<option value="${d}">${fmtData(d)}</option>`).join('')}
+      </select>
+      <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+        <button id="toggle-tonn" onclick="setProgMode('tonn')" style="padding:8px 14px;font-size:13px;border:none;cursor:pointer;background:var(--accent);color:#fff;font-family:var(--font-body)">⚖️ Tonnellaggio</button>
+        <button id="toggle-reps" onclick="setProgMode('reps')" style="padding:8px 14px;font-size:13px;border:none;cursor:pointer;background:var(--bg2);color:var(--text2);font-family:var(--font-body)">🔢 REPS</button>
+        <button id="toggle-tut" onclick="setProgMode('tut')" style="padding:8px 14px;font-size:13px;border:none;cursor:pointer;background:var(--bg2);color:var(--text2);font-family:var(--font-body)">⏱ TUT</button>
+      </div>
+    </div>
+    <div id="prog-chart-container">
+      <div class="empty-state"><div class="empty-icon">📈</div><div class="empty-text">Seleziona un blocco o una data</div></div>
+    </div>
+  `;
+  window._progSessioni = sessioni || [];
+  window._progRisultati = risultati || [];
+  window._progRisultatiPerRep = risultatiPerRep || [];
+  window._progMode = 'tonn';
+}
+
+function filterSquadraProg() {
+  const squadra = document.getElementById('p-squadra')?.value || '';
+  const profMap = window._progProfMap || {};
+  const selA = document.getElementById('p-atleta');
+  if (!selA) return;
+  const nomeProg = (email) => {
+    const p = profMap[email];
+    if (p && (p.nome || p.cognome)) return `${p.nome||''} ${p.cognome||''}`.trim();
+    return email;
+  };
+  const atleti = [...new Set((window._progSessioni||[]).map(s => s.atleta_email))].filter(Boolean)
+    .filter(e => !squadra || (profMap[e]?.gruppo || 'Senza squadra') === squadra)
+    .sort((a,b)=>nomeProg(a).localeCompare(nomeProg(b)));
+  selA.innerHTML = '<option value="">Tutti gli atleti</option>' +
+    atleti.map(a => `<option value="${a}">${nomeProg(a)}</option>`).join('');
+  renderProgChart();
+}
+
+function setProgMode(mode) {
+  window._progMode = mode;
+  ['tonn','reps','tut'].forEach(m => {
+    const btn = document.getElementById('toggle-' + m);
+    if (!btn) return;
+    btn.style.background = mode === m ? 'var(--accent)' : 'var(--bg2)';
+    btn.style.color = mode === m ? '#fff' : 'var(--text2)';
+  });
+  renderProgChart();
+}
+
+function renderProgChart() {
+  const blocco = document.getElementById('p-blocco')?.value || '';
+  const dataSel = document.getElementById('p-data')?.value || '';
+  const atleta = document.getElementById('p-atleta')?.value || '';
+  const container = document.getElementById('prog-chart-container');
+
+  // Serve almeno un filtro (blocco o data)
+  if (!blocco && !dataSel) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📈</div><div class="empty-text">Seleziona un blocco o una data</div></div>';
+    return;
+  }
+
+  const sessioni = window._progSessioni;
+  const risultati = window._progRisultati;
+  const perRep = window._progRisultatiPerRep || [];
+  const mode = window._progMode || 'tonn';
+  const isReps = mode === 'reps';
+  const isTut = mode === 'tut';
+
+  const risIds = new Set(risultati.map(r => r.sessione_id));
+  let filtered = sessioni.filter(s =>
+    !s.is_template &&
+    risIds.has(s.id) &&
+    (!atleta || s.atleta_email === atleta) &&
+    (!blocco || s.blocco === blocco) &&
+    (!dataSel || s.data === dataSel)
+  );
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-text">Nessun dato per questa selezione</div></div>';
+    return;
+  }
+
+  // Raggruppa per esercizio. Ogni esercizio sa il suo tipo (normale/pushing/holding)
+  const byEserc = {};
+  filtered.forEach(s => {
+    const e = s.esercizio || 'Esercizio';
+    const bl = (s.blocco || '').toLowerCase();
+    const isHolding = bl.includes('holding');
+    const isPushing = bl.includes('isometria') && !isHolding;
+    const isIso = isHolding || isPushing;
+    if (!byEserc[e]) byEserc[e] = { isHolding, isPushing, isIso, tonnP:0, tonnE:0, tutP:0, tutE:0, repsP:0, repsE:0 };
+    const d = byEserc[e];
+
+    // Pianificato
+    d.tonnP += (s.kg_piano || 0) * (s.rip_piano || 0);
+    d.repsP += (s.rip_piano || 0);
+    d.tutP  += (s.rip_piano || 0) * (s.tut_piano || 0);
+
+    // Eseguito
+    const ris = risultati.find(r => r.sessione_id === s.id && r.rep_idx == null);
+    const repRecs = perRep.filter(r => r.sessione_id === s.id);
+    if (ris) {
+      d.repsE += (ris.rip_eseguito || 0);
+      d.tutE  += (ris.rip_eseguito || 0) * (ris.tut_eseguito || 0);
+      if (isHolding) {
+        // tonnellaggio holding = somma kg_rep per ogni rep eseguita
+        d.tonnE += repRecs.reduce((acc, r) => acc + (r.kg_rep || 0), 0);
+      } else {
+        d.tonnE += (ris.kg_eseguito || 0) * (ris.rip_eseguito || 0);
+      }
+    }
+  });
+
+  const esercizi = Object.keys(byEserc).sort();
+
+  // In base al toggle, scegli quali valori mostrare per ogni esercizio
+  // Normale: tonn (no TUT). Pushing: TUT (no tonn). Holding: ha sia tonn che TUT.
+  const fmtTonn = (v) => v >= 1000 ? (v/1000).toFixed(1) + 't' : Math.round(v) + 'kg';
+  const fmtTut  = (v) => v >= 60 ? Math.floor(v/60) + 'm' + (v%60 ? Math.round(v%60)+'s' : '') : Math.round(v) + 's';
+  const fmtReps = (v) => Math.round(v) + ' reps';
+
+  // Per ogni esercizio, ricava {valP, valE, valido, fmt} secondo il mode
+  function valoriPer(e) {
+    const d = byEserc[e];
+    if (isReps) return { vP: d.repsP, vE: d.repsE, valido: true, fmt: fmtReps };
+    if (isTut) {
+      // TUT ha senso per iso (pushing e holding), non per normali
+      return { vP: d.tutP, vE: d.tutE, valido: d.isIso, fmt: fmtTut };
+    }
+    // tonnellaggio: ha senso per normali e holding, non per pushing
+    return { vP: d.tonnP, vE: d.tonnE, valido: !d.isPushing, fmt: fmtTonn };
+  }
+
+  // Calcola maxVal solo sugli esercizi validi
+  let maxVal = 1;
+  esercizi.forEach(e => {
+    const v = valoriPer(e);
+    if (v.valido) maxVal = Math.max(maxVal, v.vP, v.vE);
+  });
+  const percBar = (val) => Math.round(val / maxVal * 100);
+
+  const labelPiano = isTut ? 'TUT pianificato' : isReps ? 'REPS pianificate' : 'Tonnellaggio pianificato';
+  const labelEseg = isTut ? 'TUT eseguito' : isReps ? 'REPS eseguite' : 'Tonnellaggio eseguito';
+  const titoloMode = isTut ? 'TUT TOTALE PER ESERCIZIO (reps × secondi)' : isReps ? 'REPS TOTALI PER ESERCIZIO' : 'TONNELLAGGIO TOTALE PER ESERCIZIO (kg × reps)';
+
+  const fmtData = (dd) => dd ? new Date(dd + 'T12:00:00').toLocaleDateString('it-IT', { day:'numeric', month:'short', year:'numeric' }) : dd;
+  let sottotitolo = '';
+  if (blocco && dataSel) sottotitolo = `${blocco} · ${fmtData(dataSel)}`;
+  else if (blocco) sottotitolo = `${blocco} · tutte le date (totale storico)`;
+  else if (dataSel) sottotitolo = `Tutti i blocchi · ${fmtData(dataSel)}`;
+
+  // Barre: ogni esercizio è una colonna con coppia piano/eseguito + etichetta sotto (solidale allo scroll)
+  const barreHtml = esercizi.map(e => {
+    const v = valoriPer(e);
+    if (!v.valido) {
+      // Esercizio non pertinente al mode corrente
+      return `
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;min-width:100px;flex-shrink:0">
+          <div style="display:flex;gap:4px;align-items:flex-end;height:100px"><div style="font-size:10px;color:var(--text3);align-self:center">n/d</div></div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--font-mono);text-align:center;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${e}">${e}</div>
+        </div>`;
+    }
+    const hP = percBar(v.vP);
+    const hE = percBar(v.vE);
+    return `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px;min-width:100px;flex-shrink:0">
+        <div style="font-size:11px;color:var(--accent);font-family:var(--font-mono)">${v.fmt(v.vP)}</div>
+        <div style="display:flex;gap:4px;align-items:flex-end;height:100px">
+          <div style="width:28px;background:var(--accent);opacity:0.6;border-radius:4px 4px 0 0;height:${hP}%;min-height:4px" title="${labelPiano}: ${v.fmt(v.vP)}"></div>
+          <div style="width:28px;background:#142ecb;opacity:0.9;border-radius:4px 4px 0 0;height:${hE}%;min-height:4px" title="${labelEseg}: ${v.fmt(v.vE)}"></div>
+        </div>
+        <div style="font-size:11px;color:#142ecb;font-family:var(--font-mono)">${v.vE > 0 ? v.fmt(v.vE) : '—'}</div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--font-mono);text-align:center;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${e}">${e}</div>
+      </div>`;
+  }).join('');
+
+  // Tabella riepilogo
+  const labelTabPiano = isTut ? 'TUT previsto' : isReps ? 'REPS previste' : 'Tonn. pianif.';
+  const labelTabEseg = isTut ? 'TUT eseguito' : isReps ? 'REPS eseguite' : 'Tonn. eseguito';
+  const righeTab = esercizi.map(e => {
+    const v = valoriPer(e);
+    if (!v.valido) {
+      return `<tr><td>${e}</td><td style="color:var(--text3)">n/d</td><td style="color:var(--text3)">n/d</td><td style="color:var(--text3)">—</td></tr>`;
+    }
+    const percRag = v.vP > 0 ? Math.round(v.vE / v.vP * 100) : 0;
+    return `
+      <tr>
+        <td>${e}</td>
+        <td style="font-family:var(--font-mono);color:var(--accent)">${v.fmt(v.vP)}</td>
+        <td style="font-family:var(--font-mono);color:#142ecb">${v.vE > 0 ? v.fmt(v.vE) : '—'}</td>
+        <td style="font-family:var(--font-mono);color:#142ecb;font-weight:600">${v.vE > 0 ? percRag + '%' : '—'}</td>
+      </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="card">
+      <div style="font-family:var(--font-display);font-size:22px;letter-spacing:2px;margin-bottom:4px">${sottotitolo}</div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:20px;font-family:var(--font-mono)">${titoloMode}</div>
+      <div style="display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)"><div style="width:12px;height:12px;background:var(--accent);opacity:0.6;border-radius:2px"></div>${labelPiano}</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)"><div style="width:12px;height:12px;background:#142ecb;opacity:0.9;border-radius:2px"></div>${labelEseg}</div>
+      </div>
+      <div style="overflow-x:auto;padding-bottom:8px">
+        <div style="display:flex;gap:20px;align-items:flex-end;min-height:170px;width:max-content">
+          ${barreHtml}
+        </div>
+      </div>
+      <div style="margin-top:24px;overflow-x:auto">
+        <table>
+          <tr><th>Esercizio</th><th>${labelTabPiano}</th><th>${labelTabEseg}</th><th>% raggiunto</th></tr>
+          ${righeTab}
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════
+// ESPORTA EXCEL (COACH)
+// ═══════════════════════════════════════
+async function renderEsporta() {
+  document.getElementById('main-content').innerHTML = `
+    <div class="section-header">
+      <div class="section-title">ESPORTA EXCEL</div>
+    </div>
+    <div class="card">
+      <div class="card-title">GENERA REPORT</div>
+      <p style="font-size:14px;color:var(--text2);margin-bottom:24px">Esporta i dati in Excel. Puoi scaricare per squadra, per atleta singolo, o tutti.</p>
+      <div style="display:grid;gap:12px;margin-bottom:24px">
+        <div>
+          <label style="font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Squadra</label>
+          <select id="exp-squadra" onchange="aggiornaFiltriEsporta()" style="width:100%"><option value="">Tutte le squadre</option></select>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Atleta</label>
+          <select id="exp-atleta" onchange="aggiornaFiltriEsporta()" style="width:100%"><option value="">Tutti gli atleti</option></select>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Blocco</label>
+          <select id="exp-blocco" style="width:100%"><option value="">Tutti i blocchi</option></select>
+        </div>
+      </div>
+      <div id="exp-alert"></div>
+      <button class="btn btn-primary" onclick="esportaExcel()" id="btn-esporta">📥 Scarica Excel</button>
+    </div>
+  `;
+
+  const { data: sessioni } = await sb.from('sessioni').select('atleta_email, blocco').eq('is_template', false);
+  const { data: profiles } = await sb.from('profiles').select('email, gruppo, nome, cognome').eq('ruolo', 'atleta');
+
+  const squadre = [...new Set((profiles||[]).map(p => p.gruppo).filter(Boolean))].sort();
+  const atleti = [...new Set((sessioni||[]).map(s => s.atleta_email))].filter(Boolean).sort();
+  const blocchi = [...new Set((sessioni||[]).map(s => s.blocco))].filter(Boolean).sort();
+
+  window._expProfiles = profiles || [];
+  window._expSessioni = sessioni || [];
+  const expProfMap = {};
+  (profiles||[]).forEach(p => { expProfMap[p.email] = p; });
+  window._expProfMap = expProfMap;
+  const nomeExp = (email) => {
+    const p = expProfMap[email];
+    if (p && (p.nome || p.cognome)) return `${p.nome||''} ${p.cognome||''}`.trim();
+    return email;
+  };
+
+  const selS = document.getElementById('exp-squadra');
+  const selA = document.getElementById('exp-atleta');
+  const selB = document.getElementById('exp-blocco');
+  squadre.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; selS.appendChild(o); });
+  atleti.sort((a,b)=>nomeExp(a).localeCompare(nomeExp(b))).forEach(a => { const o = document.createElement('option'); o.value = a; o.textContent = nomeExp(a); selA.appendChild(o); });
+  blocchi.forEach(b => { const o = document.createElement('option'); o.value = b; o.textContent = b; selB.appendChild(o); });
+}
+
+function aggiornaFiltriEsporta() {
+  const squadra = document.getElementById('exp-squadra').value;
+  const atletaCorrente = document.getElementById('exp-atleta').value;
+  const selA = document.getElementById('exp-atleta');
+  const selB = document.getElementById('exp-blocco');
+  const expProfMap = window._expProfMap || {};
+  const nomeExp = (email) => {
+    const p = expProfMap[email];
+    if (p && (p.nome || p.cognome)) return `${p.nome||''} ${p.cognome||''}`.trim();
+    return email;
+  };
+
+  // Filtra atleti per squadra
+  const profilesFiltrati = squadra
+    ? (window._expProfiles||[]).filter(p => p.gruppo === squadra)
+    : (window._expProfiles||[]);
+  const emailsFiltrate = new Set(profilesFiltrati.map(p => p.email));
+
+  // Ricostruisci select atleta
+  selA.innerHTML = '<option value="">Tutti gli atleti</option>';
+  [...new Set((window._expSessioni||[]).map(s => s.atleta_email))]
+    .filter(e => emailsFiltrate.has(e))
+    .sort((a,b)=>nomeExp(a).localeCompare(nomeExp(b)))
+    .forEach(a => { const o = document.createElement('option'); o.value = a; o.textContent = nomeExp(a); selA.appendChild(o); });
+  if (atletaCorrente && emailsFiltrate.has(atletaCorrente)) selA.value = atletaCorrente;
+
+  // Blocchi in base ad atleta selezionato
+  const atletaSel = selA.value;
+  const blocchiFiltrati = [...new Set((window._expSessioni||[])
+    .filter(s => !atletaSel || s.atleta_email === atletaSel)
+    .map(s => s.blocco))].filter(Boolean).sort();
+  selB.innerHTML = '<option value="">Tutti i blocchi</option>';
+  blocchiFiltrati.forEach(b => { const o = document.createElement('option'); o.value = b; o.textContent = b; selB.appendChild(o); });
+}
+
+async function esportaExcel() {
+  setLoading('btn-esporta', true);
+  const squadra = document.getElementById('exp-squadra').value;
+  const atleta = document.getElementById('exp-atleta').value;
+  const blocco = document.getElementById('exp-blocco').value;
+
+  // Recupera profili per mappare email -> squadra
+  const { data: profiles } = await sb.from('profiles').select('email, gruppo, nome, cognome').eq('ruolo', 'atleta');
+  const profileMap = {};
+  (profiles||[]).forEach(p => { profileMap[p.email] = p; });
+
+  // Filtra atleti per squadra se necessario
+  let emailFiltrate = null;
+  if (squadra) {
+    emailFiltrate = new Set((profiles||[]).filter(p => p.gruppo === squadra).map(p => p.email));
+  }
+  if (atleta) {
+    emailFiltrate = new Set([atleta]);
+  }
+
+  let qS = sb.from('sessioni').select('*').eq('is_template', false);
+  if (atleta) qS = qS.eq('atleta_email', atleta);
+  else if (squadra) qS = qS.in('atleta_email', [...(emailFiltrate||[])]);
+  if (blocco) qS = qS.eq('blocco', blocco);
+  const { data: sessioni } = await qS;
+  const { data: risultati } = await sb.from('risultati').select('*');
+
+  const wb = XLSX.utils.book_new();
+
+  // ── FOGLIO 0: TEMPLATE ──
+  let qT = sb.from('sessioni').select('*').eq('is_template', true);
+  if (atleta) qT = qT.eq('atleta_email', atleta);
+  else if (squadra && emailFiltrate) qT = qT.in('atleta_email', [...emailFiltrate]);
+  if (blocco) qT = qT.eq('blocco', blocco);
+  const { data: templates } = await qT.order('ordine');
+  const templateData = [['Squadra', 'Atleta', 'Nome', 'Cognome', 'Blocco', 'Data', 'Esercizio', 'Serie_n', 'Kg', 'Reps', 'Nota', 'Recupero_serie', 'Recupero_reps', 'Angolo', 'TUT']];
+  // Compatta le serie con stessi parametri in un'unica riga (Serie_n = numero di serie)
+  const tplGruppi = {};
+  const tplOrdine = [];
+  (templates||[]).forEach(s => {
+    // chiave su tutti i parametri che definiscono una "serie tipo"
+    const key = [s.atleta_email, s.blocco, s.esercizio, s.kg_piano, s.rip_piano, s.nota, s.recupero_serie, s.recupero_reps, s.angolo_piano, s.tut_piano].join('||');
+    if (!tplGruppi[key]) {
+      tplGruppi[key] = { s, count: 0 };
+      tplOrdine.push(key);
+    }
+    tplGruppi[key].count++;
+  });
+  tplOrdine.forEach(key => {
+    const { s, count } = tplGruppi[key];
+    const p = profileMap[s.atleta_email] || {};
+    templateData.push([p.gruppo || '', s.atleta_email, p.nome || '', p.cognome || '', s.blocco, '', s.esercizio, count, s.kg_piano, s.rip_piano, s.nota || '', s.recupero_serie || '', s.recupero_reps || '', s.angolo_piano || '', s.tut_piano || '']);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(templateData), 'Template');
+
+  // Helper: tipo di blocco
+  const tipoBlocco = (blocco) => {
+    const b = (blocco || '').toLowerCase();
+    const holding = b.includes('holding');
+    const pushing = b.includes('isometria') && !holding;
+    return { holding, pushing, iso: holding || pushing };
+  };
+  // Helper: trova record principale (rep_idx null)
+  const findRisPrinc = (sid) => (risultati||[]).find(r => r.sessione_id === sid && r.completato && r.rep_idx == null);
+  // Helper: record per-rep di una sessione
+  const findRepRecs = (sid) => (risultati||[]).filter(r => r.sessione_id === sid && r.rep_idx != null).sort((a,b)=>a.rep_idx-b.rep_idx);
+
+  // ── FOGLIO 1: PIANO ── (ordinato per data, poi atleta, poi ordine)
+  const ordinaPerData = (arr) => arr.slice().sort((a,b) =>
+    (a.data||'').localeCompare(b.data||'') ||
+    (a.atleta_email||'').localeCompare(b.atleta_email||'') ||
+    (a.ordine||0) - (b.ordine||0) ||
+    (a.serie_n||0) - (b.serie_n||0)
+  );
+  const pianoData = [['Atleta', 'Blocco', 'Data', 'Esercizio', 'Serie n°', 'Kg Piano', 'Reps Piano', 'Angolo Piano', 'TUT Piano', 'Rec. serie', 'Rec. reps', 'Nota']];
+  ordinaPerData((sessioni||[]).filter(s => !s.is_template)).forEach(s =>
+    pianoData.push([s.atleta_email, s.blocco, s.data, s.esercizio, s.serie_n, s.kg_piano ?? '', s.rip_piano ?? '', s.angolo_piano ?? '', s.tut_piano ?? '', s.recupero_serie ?? '', s.recupero_reps ?? '', s.nota || ''])
+  );
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(pianoData), 'Piano');
+
+  // ── FOGLIO 2: PROGRESSIONE (formato lungo, una riga per atleta-data-esercizio) ──
+  const sessioniReali = (sessioni||[]).filter(s => !s.is_template);
+  const progData = [['Atleta', 'Data', 'Blocco', 'Esercizio', 'Tipo',
+    'Reps prev', 'Reps fatte', 'Kg prev', 'Kg fatti', '% Kg',
+    'TUT prev', 'TUT fatto', '% TUT', 'Serie compl.']];
+
+  // Raggruppa per atleta|data|blocco|esercizio
+  const gruppi = {};
+  sessioniReali.forEach(s => {
+    const key = s.atleta_email + '|' + s.data + '|' + (s.blocco||'') + '|' + s.esercizio;
+    if (!gruppi[key]) gruppi[key] = { atleta: s.atleta_email, data: s.data, blocco: s.blocco, esercizio: s.esercizio, serie: [] };
+    gruppi[key].serie.push(s);
+  });
+
+  Object.values(gruppi)
+    .sort((a,b) => (a.data||'').localeCompare(b.data||'') || a.atleta.localeCompare(b.atleta) || (a.blocco||'').localeCompare(b.blocco||''))
+    .forEach(g => {
+      const t = tipoBlocco(g.blocco);
+      const tipo = t.holding ? 'Iso Holding' : t.pushing ? 'Iso Pushing' : 'Normale';
+      let repsPrev=0, repsFatte=0, kgPrev=0, kgFatti=0, tutPrev=0, tutFatto=0, completate=0;
+      g.serie.forEach(s => {
+        repsPrev += (s.rip_piano||0);
+        kgPrev += (s.kg_piano||0)*(s.rip_piano||0);
+        tutPrev += (s.rip_piano||0)*(s.tut_piano||0);
+        const princ = findRisPrinc(s.id);
+        if (princ) {
+          completate++;
+          repsFatte += (princ.rip_eseguito||0);
+          tutFatto += (princ.rip_eseguito||0)*(princ.tut_eseguito||0);
+          if (t.holding) {
+            const recs = findRepRecs(s.id);
+            kgFatti += recs.reduce((a,r)=>a+(r.kg_rep||0),0);
+          } else {
+            kgFatti += (princ.kg_eseguito||0)*(princ.rip_eseguito||0);
+          }
+        }
+      });
+      const fatto = completate > 0;
+      const percKg = (kgPrev > 0 && fatto) ? Math.round(kgFatti/kgPrev*100)+'%' : '';
+      const percTut = (tutPrev > 0 && fatto) ? Math.round(tutFatto/tutPrev*100)+'%' : '';
+
+      // Riempi solo le metriche pertinenti al tipo
+      let rPrev='', rFatte='', kPrev='', kFatti='', pKg='', tPrev='', tFatto='', pTut='';
+      rPrev = repsPrev || '';
+      rFatte = fatto ? repsFatte : '';
+      if (t.holding) {
+        kPrev = kgPrev||''; kFatti = fatto?kgFatti:''; pKg = fatto?percKg:'—';
+        tPrev = tutPrev||''; tFatto = fatto?tutFatto:''; pTut = fatto?percTut:'—';
+      } else if (t.pushing) {
+        tPrev = tutPrev||''; tFatto = fatto?tutFatto:''; pTut = fatto?percTut:'—';
+      } else {
+        kPrev = kgPrev||''; kFatti = fatto?kgFatti:''; pKg = fatto?percKg:'—';
+      }
+
+      progData.push([
+        g.atleta, g.data, g.blocco, g.esercizio, tipo,
+        rPrev, rFatte, kPrev, kFatti, pKg,
+        tPrev, tFatto, pTut, `${completate}/${g.serie.length}`
+      ]);
+    });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(progData), 'Progressione');
+
+  // ── FOGLIO 3: RISULTATI (una riga per serie, con tutti i campi) ──
+  const risultatiData = [['Atleta', 'Blocco', 'Tipo', 'Data', 'Esercizio', 'Serie n°',
+    'Kg Piano', 'Reps Piano', 'Angolo Piano', 'TUT Piano',
+    'Kg Eseguito', 'Reps Eseguito', 'Angolo Eseguito', 'TUT Eseguito', 'Stato']];
+  ordinaPerData(sessioniReali).forEach(s => {
+    const t = tipoBlocco(s.blocco);
+    const tipo = t.holding ? 'Iso Holding' : t.pushing ? 'Iso Pushing' : 'Normale';
+    const r = findRisPrinc(s.id);
+    let stato;
+    if (!r) stato = 'No';
+    else if (r.kg_eseguito === 0 && r.rip_eseguito === 0 && !t.iso) stato = 'No (saltata)';
+    else stato = 'Sì';
+    risultatiData.push([
+      s.atleta_email, s.blocco, tipo, s.data, s.esercizio, s.serie_n,
+      s.kg_piano ?? '', s.rip_piano ?? '', s.angolo_piano ?? '', s.tut_piano ?? '',
+      r ? (r.kg_eseguito ?? '') : '', r ? (r.rip_eseguito ?? '') : '',
+      r ? (r.angolo_eseguito ?? '') : '', r ? (r.tut_eseguito ?? '') : '',
+      stato
+    ]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(risultatiData), 'Risultati');
+
+  // ── FOGLIO 4: DETTAGLIO REP (solo holding, kg e TUT per ogni rep) ──
+  const repData = [['Atleta', 'Blocco', 'Data', 'Esercizio', 'Serie n°', 'Rep n°', 'Kg', 'TUT (s)']];
+  sessioniReali.forEach(s => {
+    const t = tipoBlocco(s.blocco);
+    if (!t.holding) return;
+    const recs = findRepRecs(s.id);
+    recs.forEach(r => {
+      repData.push([s.atleta_email, s.blocco, s.data, s.esercizio, s.serie_n, (r.rep_idx ?? 0) + 1, r.kg_rep ?? '', r.tut_eseguito ?? '']);
+    });
+  });
+  if (repData.length > 1) {
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(repData), 'Dettaglio Rep');
+  }
+
+  const suffix = atleta ? atleta.split('@')[0] : squadra ? squadra.replace(/\s+/g,'_') : 'tutti';
+  XLSX.writeFile(wb, `virtus_${suffix}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  setLoading('btn-esporta', false);
+  showToast('Excel scaricato!', 'success');
+}
+
+// ═══════════════════════════════════════
+// PRIVACY (ATLETA)
+// ═══════════════════════════════════════
+function renderPrivacy() {
+  document.getElementById('main-content').innerHTML = `
+    <div class="section-header">
+      <div class="section-title">PRIVACY</div>
+    </div>
+    <div class="card">
+      <div class="card-title">I TUOI DATI</div>
+      <p style="font-size:14px;color:var(--text2);margin-bottom:16px">Hai diritto di accedere, modificare o richiedere la cancellazione di tutti i tuoi dati personali.</p>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+          <div>
+            <div style="font-weight:600">Consenso GDPR</div>
+            <div style="font-size:13px;color:var(--text3)">Accettato il ${currentProfile.gdpr_consent_date ? new Date(currentProfile.gdpr_consent_date).toLocaleDateString('it-IT') : '—'}</div>
+          </div>
+          <span class="tag tag-green">Accettato ✓</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+          <div>
+            <div style="font-weight:600">Server dati</div>
+            <div style="font-size:13px;color:var(--text3)">West EU — Irlanda (GDPR)</div>
+          </div>
+          <span class="tag tag-green">Europa ✓</span>
+        </div>
+        <div style="padding:12px 0">
+          <div style="font-weight:600;margin-bottom:8px">Richiesta cancellazione dati</div>
+          <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Per esercitare il diritto all'oblio, contatta il tuo coach o scrivi a <strong>info@virtusfisio.it</strong>. La richiesta verrà elaborata entro 30 giorni.</div>
+          <button class="btn btn-danger btn-sm" onclick="confirmDeleteSelf()">Richiedi cancellazione account</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function confirmDeleteSelf() {
+  openModal(`
+    <div class="modal-title">CANCELLAZIONE DATI</div>
+    <p style="color:var(--text2);margin-bottom:16px">Stai per eliminare il tuo account e tutti i tuoi dati di allenamento. Questa azione è <strong>irreversibile</strong>.</p>
+    <div class="alert alert-error">⚠️ Tutti i dati verranno cancellati permanentemente</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Annulla</button>
+      <button class="btn btn-danger" onclick="deleteSelf()">Sì, cancella tutto</button>
+    </div>
+  `);
+}
+
+async function deleteSelf() {
+  await sb.from('profiles').delete().eq('id', currentUser.id);
+  await sb.auth.signOut();
+  closeModal();
+  location.reload();
+}
+
+// ═══════════════════════════════════════
+// TIMER RECUPERO
+// ═══════════════════════════════════════
+let recuperoInterval = null;
+let recuperoSecondsLeft = 0;
+let recuperoTotale = 0;
+const CIRCUMFERENCE = 2 * Math.PI * 118;
+
+function avviaRecupero(durata, tipo, nomeEsercizio, serieIdx, serieTotal) {
+  recuperoTotale = durata;
+  recuperoSecondsLeft = durata;
+  const screen = document.getElementById('recupero-screen');
+  document.getElementById('recupero-tipo-label').textContent = tipo === 'esercizio' ? 'RECUPERO TRA ESERCIZI' : 'RECUPERO TRA SERIE';
+  document.getElementById('recupero-exercise-label').textContent = nomeEsercizio;
+  document.getElementById('recupero-next-label').textContent = tipo === 'serie' ? `prossima: serie ${serieIdx + 1} di ${serieTotal}` : `prossimo esercizio in arrivo`;
+  const fill = document.getElementById('recupero-ring-fill');
+  fill.style.strokeDasharray = CIRCUMFERENCE;
+  fill.style.strokeDashoffset = '0';
+  fill.style.stroke = 'var(--accent)';
+  document.getElementById('recupero-go-btn').classList.remove('visible');
+  screen.classList.add('open');
+  if (navigator.vibrate) navigator.vibrate(50);
+  aggiornaDisplayTimer();
+  clearInterval(recuperoInterval);
+  recuperoInterval = setInterval(() => {
+    recuperoSecondsLeft--;
+    aggiornaDisplayTimer();
+    if (recuperoSecondsLeft <= 0) { clearInterval(recuperoInterval); fineRecupero(); }
+  }, 1000);
+}
+
+function aggiornaDisplayTimer() {
+  const el = document.getElementById('recupero-seconds');
+  const fill = document.getElementById('recupero-ring-fill');
+  const minLabel = document.getElementById('recupero-min-label');
+  const s = Math.max(0, recuperoSecondsLeft);
+  if (recuperoTotale >= 60) {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    el.textContent = m > 0 ? `${m}:${sec.toString().padStart(2,'0')}` : s;
+    minLabel.textContent = m > 0 ? 'MIN' : 'SEC';
+  } else {
+    el.textContent = s;
+    minLabel.textContent = 'SEC';
+  }
+  el.classList.toggle('urgent', s <= 10 && s > 0);
+  const offset = CIRCUMFERENCE * (1 - s / recuperoTotale);
+  fill.style.strokeDashoffset = offset;
+  fill.style.stroke = s <= 10 ? 'var(--danger)' : s <= recuperoTotale * 0.3 ? 'var(--accent2)' : 'var(--accent)';
+}
+
+function fineRecupero() {
+  if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.2, 0.4].forEach((t, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = i < 2 ? 880 : 1320;
+      gain.gain.setValueAtTime(0.3, ctx.currentTime + t);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.15);
+      osc.start(ctx.currentTime + t); osc.stop(ctx.currentTime + t + 0.15);
+    });
+  } catch(e) {}
+  document.getElementById('recupero-go-btn').classList.add('visible');
+  document.getElementById('recupero-seconds').textContent = '0';
+  document.getElementById('recupero-ring-fill').style.stroke = 'var(--success)';
+}
+
+function skipRecupero() { clearInterval(recuperoInterval); chiudiRecupero(); }
+function chiudiRecupero() { clearInterval(recuperoInterval); document.getElementById('recupero-screen').classList.remove('open'); }
+
+// ═══════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════
+function show(id, display = 'block') {
+  const el = document.getElementById(id);
+  if (el) el.style.display = display;
+}
+function hide(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = 'none';
+}
+
+function showAlert(id, msg, type = 'error') {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+}
+
+let toastTimer;
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = '', 3000);
+}
+
+function setLoading(id, loading) {
+  const btn = document.getElementById(id);
+  if (btn) btn.disabled = loading;
+}
+
+function openModal(html) {
+  document.getElementById('modal-inner').innerHTML = html;
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+}
+document.getElementById('modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// ═══════════════════════════════════════
+// PWA MANIFEST
+// ═══════════════════════════════════════
+const manifest = {
+  name: 'VIRTUS — Virtus Team Performance',
+  short_name: 'VIRTUS',
+  start_url: '.',
+  display: 'standalone',
+  background_color: '#f4f5f7',
+  theme_color: '#fe6d0d',
+  icons: [{ src: 'https://via.placeholder.com/192x192/0a0a0a/fe6d0d?text=V', sizes: '192x192', type: 'image/png' }]
+};
+const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+document.getElementById('manifest-link').href = URL.createObjectURL(blob);
+
+// ═══════════════════════════════════════
+// START
+// ═══════════════════════════════════════
+init();
+</script>
+</body>
+</html>
