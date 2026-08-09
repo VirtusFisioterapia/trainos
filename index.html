@@ -1833,6 +1833,7 @@ async function completaSerieIso(saltaRecupero) {
 
   // Aggiorna solo il bottone salva senza re-render della lista
   aggiornaBottoneSalva();
+  aggiornaProgressoEsercizio(s.sessioneId);
   showToast('✅ Serie completata!', 'success');
 
   // Scorri fino alla card senza ri-renderizzare
@@ -1945,6 +1946,7 @@ async function toggleSerie(sessioneId, btn) {
 
   // aggiorna bottone salva della giornata
   aggiornaBottoneSalva();
+  aggiornaProgressoEsercizio(sessioneId);
   showToast(nowDone ? '✓ Serie completata!' : 'Serie rimossa', nowDone ? 'success' : '');
 
   if (nowDone) {
@@ -1958,6 +1960,20 @@ async function toggleSerie(sessioneId, btn) {
       avviaRecupero(recuperoSerie, 'serie', nomeEsercizio, serieIdx, serieTotal);
     }
   }
+}
+
+function aggiornaProgressoEsercizio(sessioneId) {
+  const card = document.getElementById('card-' + sessioneId);
+  if (!card) return;
+  const exerciseCard = card.closest('.exercise-card');
+  if (!exerciseCard) return;
+  const allCards = exerciseCard.querySelectorAll('.serie-card');
+  const done = [...allCards].filter(c => c.classList.contains('done')).length;
+  const total = allCards.length;
+  const progress = exerciseCard.querySelector('.exercise-progress');
+  if (progress) progress.textContent = `${done}/${total} serie`;
+  const bar = exerciseCard.querySelector('.progress-bar');
+  if (bar) bar.style.width = total > 0 ? `${Math.round(done/total*100)}%` : '0%';
 }
 
 function aggiornaBottoneSalva() {
