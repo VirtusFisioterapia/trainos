@@ -657,6 +657,7 @@ tr:hover td { background: var(--bg3); }
       <label for="gdpr-check">Ho letto l'informativa e <strong>acconsento al trattamento dei miei dati personali</strong> per le finalità indicate. Sono consapevole di poter revocare il consenso in qualsiasi momento.</label>
     </div>
     <div id="gdpr-alert"></div>
+    <p style="font-size:13px;color:#666;text-align:center;margin-bottom:12px">Leggi la <a href="/privacy.html" target="_blank" style="color:#142ecb;font-weight:700">Privacy Policy completa</a></p>
     <button class="btn btn-primary btn-full" onclick="acceptGdpr()">Accetta e continua →</button>
   </div>
 </div>
@@ -769,6 +770,9 @@ let currentTab = 'sessioni';
 let allSessions = [];
 let allProfiles = [];
 let activeAtleta = null;
+let _previewMode = false;
+let _previewAtletaEmail = null;
+let _previewAtletaNome = '';
 
 // ═══════════════════════════════════════
 // INIT
@@ -976,6 +980,40 @@ async function renderDashboard() {
 // ═══════════════════════════════════════
 // SESSIONI
 // ═══════════════════════════════════════
+function attivaPreview() {
+  const atletaEl = document.getElementById('f-atleta');
+  if (!atletaEl?.value) return;
+  _previewAtletaEmail = atletaEl.value;
+  const profMap = window._sessProfileMap || {};
+  const p = profMap[_previewAtletaEmail];
+  _previewAtletaNome = p ? `${p.nome||''} ${p.cognome||''}`.trim() || _previewAtletaEmail : _previewAtletaEmail;
+  _previewMode = true;
+  // Mostra banner
+  let banner = document.getElementById('preview-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'preview-banner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#fe6d0d;color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;font-size:14px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.2)';
+    document.body.appendChild(banner);
+  }
+  banner.innerHTML = `<span>👁 ANTEPRIMA — Stai vedendo come: <strong>${_previewAtletaNome}</strong></span><button onclick="disattivaPreview()" style="padding:6px 14px;background:#fff;color:#fe6d0d;border:none;border-radius:6px;font-weight:700;cursor:pointer;font-size:13px">Esci anteprima</button>`;
+  banner.style.display = 'flex';
+  // Aggiungi padding-top al body per non coprire contenuto
+  document.body.style.paddingTop = '48px';
+  // Re-render
+  filterSessioni();
+}
+
+function disattivaPreview() {
+  _previewMode = false;
+  _previewAtletaEmail = null;
+  _previewAtletaNome = '';
+  const banner = document.getElementById('preview-banner');
+  if (banner) banner.style.display = 'none';
+  document.body.style.paddingTop = '';
+  filterSessioni();
+}
+
 async function renderSessioni() {
   const isCoach = currentProfile.ruolo === 'coach';
   let query = sb.from('sessioni').select('*').eq('is_template', false).order('data', { ascending: true }).order('ordine', { ascending: true });
@@ -1028,6 +1066,7 @@ async function renderSessioni() {
       <select id="f-atleta" onchange="filterSessioni()"><option value="">Tutti gli atleti</option>${atleti.slice().sort((a,b)=>nomeAtletaSess(a).localeCompare(nomeAtletaSess(b))).map(a => `<option value="${a}">${nomeAtletaSess(a)}</option>`).join('')}</select>
       <select id="f-blocco" onchange="filterSessioni()"><option value="">Tutti i blocchi</option>${blocchi.map(b => `<option value="${b}">${b}</option>`).join('')}</select>
       <input type="text" id="f-cerca" placeholder="Cerca esercizio..." oninput="filterSessioni()">
+      <button id="btn-preview" onclick="attivaPreview()" style="display:none;padding:8px 14px;background:var(--accent2);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">👁 Anteprima atleta</button>
     </div>
     ` : `
     <div style="margin-bottom:20px">
@@ -1098,6 +1137,9 @@ function filterSquadraSessioni() {
 function filterSessioni() {
   const squadra = document.getElementById('f-squadra')?.value || '';
   const atleta = document.getElementById('f-atleta')?.value || '';
+  // Mostra/nascondi bottone preview
+  const btnPreview = document.getElementById('btn-preview');
+  if (btnPreview) btnPreview.style.display = atleta ? 'inline-block' : 'none';
   const blocco = document.getElementById('f-blocco')?.value || '';
   const cerca = document.getElementById('f-cerca')?.value.toLowerCase() || '';
   const profMap = window._sessProfileMap || {};
@@ -1144,7 +1186,9 @@ function renderSessioniList(grouped, risultati) {
   if (!container) return;
   // Popola sempre i record per-rep, indipendentemente da quale funzione ha chiamato il render
   window._lastRepRecords = (risultati || []).filter(r => r.rep_idx != null);
-  const isCoach = currentProfile.ruolo === 'coach';
+  const isCoach = (currentProfile.ruolo === 'coach') && !_previewMode;
+  // In preview: usa l'email dell'atleta selezionato come se fosse l'utente
+  const effectiveEmail = _previewMode ? _previewAtletaEmail : (currentUser?.email || '');
   const keys = Object.keys(grouped).sort();
 
   if (keys.length === 0) {
@@ -1171,7 +1215,7 @@ function renderSessioniList(grouped, risultati) {
     const completatePre = tutteLeSeriePre.filter(s => risultati.some(r => r.sessione_id === s.id && r.completato)).length;
     const tuttePre = completatePre === totalePre && totalePre > 0;
     const salvataKeyPre = !isCoach ? ('sessione_salvata_' + currentUser.id + '_' + dateAtleta) : null;
-    const giaSalvataPre = !isCoach && salvataKeyPre && localStorage.getItem(salvataKeyPre) === '1' && tuttePre;
+    const giaSalvataPre = !isCoach && !_previewMode && salvataKeyPre && localStorage.getItem(salvataKeyPre) === '1' && tuttePre;
 
     const blocksHtml = blockKeys.map(key => {
       const day = grouped[key];
@@ -1323,9 +1367,10 @@ function renderSessioniList(grouped, risultati) {
                       const isIso = (serie[0]?.blocco || nome || '').toLowerCase().includes('isometria');
                       const isIsoHolding = isIso && (serie[0]?.blocco || '').toLowerCase().includes('holding');
                       return `
-                    <div class="serie-row" style="padding-bottom:4px">
+                    <div class="serie-row" style="${isIso ? 'grid-template-columns:28px 1fr 1fr 1fr 1fr auto;' : ''}padding-bottom:4px">
                       <div></div>
                       <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">${isIso ? 'Angolo (°)' : 'Carico previsto'}</div>
+                      ${isIso ? '<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">REPS</div>' : ''}
                       <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px">${isIso ? 'TUT (s)' : 'REPS'}</div>
                       <div style="font-size:11px;color:var(--success);text-transform:uppercase;letter-spacing:0.5px">Eseguito</div>
                       <div style="font-size:11px;color:var(--success);text-transform:uppercase;letter-spacing:0.5px">%</div>
@@ -1372,9 +1417,10 @@ function renderSessioniList(grouped, risultati) {
                         statoTag = `<span class="tag tag-gray">—</span>`;
                       }
                       return `
-                        <div class="serie-row" style="${rowBg}">
+                        <div class="serie-row" style="${isIso ? 'grid-template-columns:28px 1fr 1fr 1fr 1fr auto;' : ''}${rowBg}">
                           <div style="font-family:var(--font-mono);font-size:12px;color:var(--text3);text-align:center">${idx + 1}</div>
                           <div style="font-family:var(--font-mono);font-size:13px;color:var(--text2)">${isIso ? (s.angolo_piano ?? '—') + '°' : (s.kg_piano ?? '—')}</div>
+                          ${isIso ? `<div style="font-family:var(--font-mono);font-size:13px;color:var(--text2)">${s.rip_piano ?? '—'}</div>` : ''}
                           <div style="font-family:var(--font-mono);font-size:13px;color:var(--text2)">${isIso ? (s.tut_piano ?? '—') + 's' : (s.rip_piano ?? '—')}</div>
                           <div style="font-family:var(--font-mono);font-size:13px;color:${statoColor}">${esegLabel}</div>
                           ${statoTag}
@@ -1696,6 +1742,7 @@ function mostraTimerIso(fase, secondiTot) {
           } else {
             // Nessun recupero, vai alla prossima rep (leggi TUT dell'input corrente)
             s.repIdx = nextRep;
+            if (s.isHolding) { const ki = document.getElementById('kg-rep-' + s.sessioneId + '-' + s.repIdx); if (ki && ki.value !== '') s.kgPerRep[s.repIdx] = parseFloat(ki.value); }
             chiudiTimerIso();
             mostraTimerIso('tenuta', getTutPerRep(s.sessioneId, s.repIdx));
           }
@@ -1706,6 +1753,7 @@ function mostraTimerIso(fase, secondiTot) {
         }
       } else {
         // Fine recupero → prossima rep in automatico (leggi TUT dell'input corrente)
+        if (s.isHolding) { const ki = document.getElementById('kg-rep-' + s.sessioneId + '-' + s.repIdx); if (ki && ki.value !== '') s.kgPerRep[s.repIdx] = parseFloat(ki.value); }
         chiudiTimerIso();
         mostraTimerIso('tenuta', getTutPerRep(s.sessioneId, s.repIdx));
       }
@@ -1721,6 +1769,7 @@ function mostraTimerIso(fase, secondiTot) {
 
   window.isoSaltaRecupero = function() {
     clearInterval(s.interval);
+    if (s.isHolding) { const ki = document.getElementById('kg-rep-' + s.sessioneId + '-' + s.repIdx); if (ki && ki.value !== '') s.kgPerRep[s.repIdx] = parseFloat(ki.value); }
     chiudiTimerIso();
     mostraTimerIso('tenuta', getTutPerRep(s.sessioneId, s.repIdx));
   };
@@ -1784,6 +1833,7 @@ function chiudiTimerIso() {
 async function completaSerieIso(saltaRecupero) {
   const s = isoTimerState;
   if (!s) return;
+  if (_previewMode) { chiudiTimerIso(); isoTimerState = null; return; }
 
   // Salva risultato su Supabase
   const { data: existing } = await sb.from('risultati').select('id').eq('sessione_id', s.sessioneId).eq('atleta_id', currentUser.id).maybeSingle();
@@ -1888,6 +1938,7 @@ function suonaApplauso() {
 }
 
 async function toggleSerie(sessioneId, btn) {
+  if (_previewMode) return;
   const isIso = btn.dataset.iso === '1';
   const kgEl = document.getElementById('kg-' + sessioneId);
   const ripEl = document.getElementById('rip-' + sessioneId);
@@ -2000,6 +2051,7 @@ function aggiornaBottoneSalva() {
 }
 
 async function salvaSessione(key, totale) {
+  if (_previewMode) return;
   const btnId = 'salva-' + key.replace(/\|/g, '-');
   const btn = document.getElementById(btnId);
   if (!btn?.classList.contains('ready')) {
